@@ -1,0 +1,224 @@
+// Q-Not — Prisma schema
+// See ARCHITECTURE.md and DECISIONS.md for the reasoning behind each model.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- People ----------
+
+model Operator {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  routes  Route[]
+  buses   Bus[]
+  trips   Trip[]
+  drivers Driver[]
+}
+
+model Driver {
+  id         String   @id @default(cuid())
+  name       String
+  phone      String   @unique
+  operatorId String
+  operator   Operator @relation(fields: [operatorId], references: [id])
+  createdAt  DateTime @default(now())
+
+  sessions DriverSession[]
+  trips    Trip[]
+
+  @@index([operatorId])
+}
+
+model Commuter {
+  id          String   @id @default(cuid())
+  phone       String   @unique
+  displayName String?
+  createdAt   DateTime @default(now())
+
+  queueEntries QueueEntry[]
+  tickets      Ticket[]
+  messages     Message[]
+}
+
+// ---------- Network ----------
+
+model Route {
+  id          String   @id @default(cuid())
+  operatorId  String
+  operator    Operator @relation(fields: [operatorId], references: [id])
+  origin      String
+  destination String
+  createdAt   DateTime @default(now())
+
+  stops Stop[]
+  trips Trip[]
+
+  @@index([operatorId])
+}
+
+model Stop {
+  id        String @id @default(cuid())
+  routeId   String
+  route     Route  @relation(fields: [routeId], references: [id])
+  name      String
+  latitude  Float
+  longitude Float
+  sequence  Int
+
+  @@index([routeId])
+}
+
+model Bus {
+  id          String   @id @default(cuid())
+  operatorId  String
+  operator    Operator @relation(fields: [operatorId], references: [id])
+  plateNumber String   @unique
+  capacity    Int
+  createdAt   DateTime @default(now())
+
+  trips Trip[]
+
+  @@index([operatorId])
+}
+
+// ---------- Operations ----------
+
+enum TripStatus {
+  SCHEDULED
+  BOARDING
+  IN_TRANSIT
+  COMPLETED
+  CANCELLED
+}
+
+model Trip {
+  id            String     @id @default(cuid())
+  routeId       String
+  route         Route      @relation(fields: [routeId], references: [id])
+  busId         String
+  bus           Bus        @relation(fields: [busId], references: [id])
+  operatorId    String
+  operator      Operator   @relation(fields: [operatorId], references: [id])
+  driverId      String?
+  driver        Driver?    @relation(fields: [driverId], references: [id])
+  departureTime DateTime
+  status        TripStatus @default(SCHEDULED)
+  seatsTaken    Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  sessions     DriverSession[]
+  queueEntries QueueEntry[]
+  tickets      Ticket[]
+
+  @@index([routeId, departureTime])
+  @@index([operatorId, status])
+}
+
+enum DriverSessionStatus {
+  ACTIVE
+  STALE
+  ENDED
+}
+
+model DriverSession {
+  id           String              @id @default(cuid())
+  tripId       String
+  trip         Trip                @relation(fields: [tripId], references: [id])
+  driverId     String
+  driver       Driver              @relation(fields: [driverId], references: [id])
+  lastLat      Float?
+  lastLng      Float?
+  lastUpdateAt DateTime?
+  status       DriverSessionStatus @default(ACTIVE)
+  startedAt    DateTime            @default(now())
+  endedAt      DateTime?
+
+  @@index([tripId])
+}
+
+// ---------- Commuter flow ----------
+
+enum QueueStatus {
+  WAITING
+  SEATED
+  CANCELLED
+  EXPIRED
+}
+
+model QueueEntry {
+  id         String      @id @default(cuid())
+  tripId     String
+  trip       Trip        @relation(fields: [tripId], references: [id])
+  commuterId String
+  commuter   Commuter    @relation(fields: [commuterId], references: [id])
+  position   Int
+  status     QueueStatus @default(WAITING)
+  joinedAt   DateTime    @default(now())
+  resolvedAt DateTime?
+
+  @@unique([tripId, commuterId])
+  @@index([tripId, status, position])
+}
+
+enum TicketStatus {
+  ISSUED
+  USED
+  CANCELLED
+}
+
+model Ticket {
+  id         String       @id @default(cuid())
+  tripId     String
+  trip       Trip         @relation(fields: [tripId], references: [id])
+  commuterId String
+  commuter   Commuter     @relation(fields: [commuterId], references: [id])
+  code       String       @unique
+  status     TicketStatus @default(ISSUED)
+  issuedAt   DateTime     @default(now())
+  usedAt     DateTime?
+
+  @@index([tripId])
+  @@index([commuterId])
+}
+
+// ---------- External signals ----------
+
+model TapEvent {
+  id         String   @id @default(cuid())
+  eventId    String   @unique
+  tripId     String?
+  commuterId String?
+  rawPayload Json
+  receivedAt DateTime @default(now())
+
+  @@index([tripId])
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+model Message {
+  id         String           @id @default(cuid())
+  commuterId String?
+  commuter   Commuter?        @relation(fields: [commuterId], references: [id])
+  channel    String
+  direction  MessageDirection
+  body       String
+  createdAt  DateTime         @default(now())
+
+  @@index([commuterId, createdAt])
+}
