@@ -3,6 +3,8 @@
 Architecture Decision Records (ADRs) for Q-Not. Each entry states the decision,
 the alternatives, and why.
 
+---
+
 ## ADR-001: Web-first messaging, WhatsApp as a channel adapter
 
 **Context.** Q-Not's promise is a WhatsApp-native commuter experience. Meta
@@ -249,3 +251,32 @@ for migrations and in `db.ts` for the client.
 `db.ts`, both reading from `env.DATABASE_URL`). The trade-off: Prisma 7's
 adapter architecture is more explicit and less magic, which is easier to
 debug when connections fail.
+
+---
+
+## ADR-014: Migrations run as part of the build
+
+**Context.** Vercel runs `pnpm build` on every push to `main`. That command
+needs to generate the Prisma client, apply pending migrations to the live
+database, and then build the Next.js app.
+
+**Decision.** Set `build` in `package.json` to:
+prisma generate && prisma migrate deploy && next build
+
+**Alternatives.**
+- Run migrations manually before each deploy → easy to forget, and a forgotten
+  migration means the app is talking to a schema it doesn't understand.
+- A dedicated migration step in CI/CD outside the build → correct for teams
+  with preview environments, but overkill for one person and one environment
+  right now.
+
+**Consequence.** Migrations apply to the live database as a side effect of
+shipping. If a migration is bad, the deploy fails, which is what we want —
+better a failed deploy than a running app against a broken schema.
+
+**Landmine warning.** The day this project has a preview environment, a second
+developer, or a staging database, this line must be split out. Preview deploys
+would otherwise run migrations against production. Documented here so it is
+not discovered the hard way.
+
+**Status:** Accepted for v1. Revisit before Sprint 02.
