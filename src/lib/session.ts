@@ -52,3 +52,34 @@ export async function getSessionOperatorId(): Promise<string | null> {
   if (!token) return null;
   return verifySessionToken(token);
 }
+
+// ---------- Commuter sessions ----------
+// Separate cookie name so operator and commuter sessions can coexist.
+// See DECISIONS.md ADR-014 (multi-role sessions).
+
+const COMMUTER_COOKIE = "qnot_commuter";
+
+export async function setCommuterCookie(commuterId: string): Promise<void> {
+  const sig = sign(commuterId);
+  const token = `${commuterId}.${sig}`;
+  const jar = await cookies();
+  jar.set(COMMUTER_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: env.NODE_ENV === "production",
+    path: "/",
+    maxAge: SESSION_TTL_DAYS * 24 * 60 * 60,
+  });
+}
+
+export async function clearCommuterCookie(): Promise<void> {
+  const jar = await cookies();
+  jar.delete(COMMUTER_COOKIE);
+}
+
+export async function getCommuterId(): Promise<string | null> {
+  const jar = await cookies();
+  const token = jar.get(COMMUTER_COOKIE)?.value;
+  if (!token) return null;
+  return verifySessionToken(token);
+}
