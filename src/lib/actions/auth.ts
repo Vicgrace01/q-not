@@ -45,11 +45,19 @@ export async function signupAction(
   const { name, phone, password } = parsed.data;
   const email = parsed.data.email.toLowerCase().trim();
 
-  const existing = await prisma.operator.findUnique({ where: { email } });
-  if (existing) {
-    return { error: { email: ["This email is already registered"] } };
-  }
+  const [existingEmail, existingPhone] = await Promise.all([
+    prisma.operator.findUnique({ where: { email }, select: { id: true } }),
+    prisma.operator.findUnique({ where: { phone }, select: { id: true } }),
+  ]);
 
+  if (existingEmail || existingPhone) {
+    return {
+      error: {
+        ...(existingEmail ? { email: ["This email is already registered"] } : {}),
+        ...(existingPhone ? { phone: ["This phone is already registered"] } : {}),
+      },
+    };
+  }
   const passwordHash = await hashPassword(password);
   const operator = await prisma.operator.create({
     data: { name, email, phone, passwordHash },
