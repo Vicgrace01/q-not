@@ -1,11 +1,3 @@
-packages:
-  - "."
-
-allowBuilds:
-  '@prisma/engines': true
-  prisma: true
-  esbuild: true
-  msgpackr-extract: true
-  sharp: true
-  unrs-resolver: true
-  workerd: false
+minimumReleaseAgeExclude:
+  - baseline-browser-mapping@2.11.39
+  - electron-to-chromium@1.5.492
