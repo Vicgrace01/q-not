@@ -1,5 +1,11 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest";
-import { prisma } from "@/lib/db";
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterAll,
+} from "vitest";import { prisma } from "@/lib/db";
 import { joinQueueTx } from "@/lib/queue/join";
 import {
   resetDb,
@@ -8,6 +14,9 @@ import {
 } from "./helpers/db";
 
 describe("seat race", () => {
+  beforeAll(async () => {
+    await prisma.$connect();
+  }, 30_000);
   beforeEach(async () => {
     await resetDb();
   });

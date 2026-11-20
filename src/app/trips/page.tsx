@@ -1,13 +1,16 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default async function TripsPage() {
-  const trips = await prisma.trip.findMany({
+async function getUpcomingTrips() {
+  // Keep time-dependent work in the data-access helper, not render logic.
+  const cutoff = new Date(Date.now() - 60 * 60 * 1000);
+
+  return prisma.trip.findMany({
     where: {
       status: { in: ["SCHEDULED", "BOARDING"] },
-      departureTime: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+      departureTime: { gte: cutoff },
     },
     orderBy: { departureTime: "asc" },
     include: {
@@ -16,6 +19,10 @@ export default async function TripsPage() {
     },
     take: 50,
   });
+}
+
+export default async function TripsPage() {
+  const trips = await getUpcomingTrips();
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-50">
@@ -36,7 +43,7 @@ export default async function TripsPage() {
       <main className="mx-auto max-w-3xl px-6 py-8">
         <h1 className="text-2xl font-semibold">Live trips</h1>
         <p className="mt-1 text-sm text-neutral-400">
-          Browse departures. No app, no account — sign in only when you join a
+          Browse departures. No app, no account â€” sign in only when you join a
           queue.
         </p>
 
@@ -64,10 +71,10 @@ export default async function TripsPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">
-                          {trip.route.origin} → {trip.route.destination}
+                          {trip.route.origin} â†’ {trip.route.destination}
                         </p>
                         <p className="mt-1 text-xs text-neutral-400">
-                          Departs {departing} · Bus {trip.bus.plateNumber} ·
+                          Departs {departing} Â· Bus {trip.bus.plateNumber} Â·
                           Status: {trip.status}
                         </p>
                       </div>

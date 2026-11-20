@@ -42,3 +42,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Q-not local-only work files
+qnot-code-audit*.txt
+qnot-visual-source*.zip
+qnot-one-day-demo-upgrade*.zip
+q-not-release-backup-*/
+q-not-repair-continuation-*/
+
+# Allow the safe environment template while keeping real env files ignored
+!.env.example
+/src/generated/prisma/
+/qnot-*-backup-*/
+/qnot-code-audit.txt

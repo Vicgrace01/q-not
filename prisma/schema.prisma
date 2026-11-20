@@ -1,8 +1,10 @@
+
 // Q-Not — Prisma schema
 // See ARCHITECTURE.md and DECISIONS.md for the reasoning behind each model.
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {

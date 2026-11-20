@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
-import { useActionState } from "react";
+import Link from "next/link";
+import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import {
   requestOtpAction,
   type CommuterAuthState,
@@ -17,7 +17,6 @@ export default function CommuterLoginPage() {
     initialState,
   );
 
-  // When we have a phone + devCode, move to the verify step.
   useEffect(() => {
     if (state.phone && state.devCode) {
       router.push(`/c/login/verify?phone=${encodeURIComponent(state.phone)}`);
@@ -28,9 +27,9 @@ export default function CommuterLoginPage() {
     <div className="min-h-screen bg-neutral-950 text-neutral-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <a href="/" className="text-2xl font-semibold">
+          <Link href="/" className="text-2xl font-semibold">
             Q-Not
-          </a>
+          </Link>
           <p className="mt-1 text-sm text-neutral-400">
             Sign in with your phone number
           </p>
@@ -61,7 +60,7 @@ export default function CommuterLoginPage() {
 
             {state.devCode && (
               <p className="rounded bg-blue-950 px-3 py-2 text-xs text-blue-300">
-                Dev mode — your code is <span className="font-mono">{state.devCode}</span>
+                Dev mode â€” your code is <span className="font-mono">{state.devCode}</span>
               </p>
             )}
 
@@ -76,9 +75,9 @@ export default function CommuterLoginPage() {
 
           <p className="mt-4 text-center text-xs text-neutral-500">
             Operators sign in at{" "}
-            <a href="/login" className="underline">
+            <Link href="/login" className="underline">
               /login
-            </a>
+            </Link>
           </p>
         </div>
       </div>
