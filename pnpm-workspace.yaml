@@ -2,6 +2,6 @@ minimumReleaseAgeExclude:
   - baseline-browser-mapping@2.11.39
   - electron-to-chromium@1.5.492
 
-onlyBuiltDependencies:
-  - '@prisma/engines'
-  - prisma
+allowBuilds:
+  '@prisma/engines': true
+  prisma: true
