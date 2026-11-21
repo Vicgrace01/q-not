@@ -1,11 +1,43 @@
-import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { getCommuterId } from "@/lib/session";
-import { releasePendingTripPayment, verifyPaystackReference } from "@/lib/payments/paystack";
+import {
+  createPaystackReference,
+  isDefinitivePaystackInitializationRejection,
+  releasePendingTripPayment,
+  verifyPaystackReference,
+} from "@/lib/payments/paystack";
 
 export const runtime = "nodejs";
+
+function paymentReturnUrl(reference: string): string {
+  return new URL(`/c/q-funds/return?reference=${encodeURIComponent(reference)}`, env.NEXT_PUBLIC_APP_URL).toString();
+}
+
+async function resolveUncertainInitialization(reference: string): Promise<NextResponse> {
+  const verification = await verifyPaystackReference(reference);
+  if (verification === "FAILED") {
+    await releasePendingTripPayment(reference);
+    return NextResponse.json(
+      { error: "Paystack reports that this payment was not completed. The temporary seat hold has been released; you can try again." },
+      { status: 502 },
+    );
+  }
+  if (verification === "SUCCESS") {
+    return NextResponse.json(
+      { paymentStatus: "SUCCESS", returnUrl: paymentReturnUrl(reference) },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  // PENDING, NOT_FOUND and UNAVAILABLE are not enough to prove failure while
+  // the original reservation window is still active.
+  return NextResponse.json(
+    { paymentStatus: "PENDING", returnUrl: paymentReturnUrl(reference) },
+    { status: 202, headers: { "Cache-Control": "no-store" } },
+  );
+}
 
 export async function POST(_request: NextRequest, context: { params: Promise<{ tripId: string }> }) {
   const commuterId = await getCommuterId();
@@ -15,7 +47,7 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ t
   const commuter = await prisma.commuter.findUnique({ where: { id: commuterId }, select: { email: true, emailVerifiedAt: true } });
   if (!commuter?.email || !commuter.emailVerifiedAt) return NextResponse.json({ error: "Add and verify an email address in your passenger profile before paying online." }, { status: 409 });
 
-  const reference = `qnot_${Date.now()}_${randomBytes(5).toString("hex")}`;
+  const reference = createPaystackReference();
   const expiresAt = new Date(Date.now() + 8 * 60 * 1000);
   let amountKobo = 0;
   let existingCheckoutUrl: string | null = null;
@@ -91,22 +123,22 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ t
       }),
       cache: "no-store",
     });
-    const result = await response.json() as { status?: boolean; message?: string; data?: { authorization_url?: string; reference?: string } };
-    if (!response.ok || !result.status || !result.data?.authorization_url) throw new Error(result.message ?? "Payment provider could not initialise checkout.");
+    const result = await response.json().catch(() => null) as { status?: boolean; message?: string; data?: { authorization_url?: string; reference?: string } } | null;
+    if (!response.ok || !result?.status || !result.data?.authorization_url || result.data.reference !== reference) {
+      if (isDefinitivePaystackInitializationRejection(response.status, result?.status)) {
+        await releasePendingTripPayment(reference);
+        return NextResponse.json(
+          { error: "Paystack rejected the checkout request. The temporary seat hold has been released; please try again." },
+          { status: 502 },
+        );
+      }
+      return resolveUncertainInitialization(reference);
+    }
     await prisma.payment.update({ where: { reference }, data: { checkoutUrl: result.data.authorization_url, providerReference: result.data.reference } });
     return NextResponse.json({ authorizationUrl: result.data.authorization_url, reference }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error) {
-    // A timeout can happen after the provider has created a charge. Verify the
-    // reference before releasing capacity; an unknown provider state keeps the
-    // hold intact until reconciliation to avoid selling the same seat twice.
-    const verification = await verifyPaystackReference(reference);
-    if (verification === "FAILED") await releasePendingTripPayment(reference);
-    if (verification === "SUCCESS") {
-      return NextResponse.json({ paymentStatus: "SUCCESS", returnUrl: new URL(`/c/q-funds/return?reference=${encodeURIComponent(reference)}`, env.NEXT_PUBLIC_APP_URL).toString() }, { headers: { "Cache-Control": "no-store" } });
-    }
-    if (verification === "PENDING" || verification === "UNAVAILABLE") {
-      return NextResponse.json({ paymentStatus: "PENDING", returnUrl: new URL(`/c/q-funds/return?reference=${encodeURIComponent(reference)}`, env.NEXT_PUBLIC_APP_URL).toString() }, { status: 202, headers: { "Cache-Control": "no-store" } });
-    }
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Payment checkout could not be started." }, { status: 502 });
+  } catch {
+    // The provider may have created a transaction before the connection failed.
+    // Do not release a seat on an ambiguous result; reconciliation will revisit it.
+    return resolveUncertainInitialization(reference);
   }
 }

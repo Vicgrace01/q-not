@@ -10,7 +10,7 @@ export default async function QFundsReturnPage({ searchParams }: { searchParams:
   if (!commuterId) redirect("/c/login");
   const { reference } = await searchParams;
   if (!reference) redirect("/c/q-funds?payment=missing");
-  const payment = await prisma.payment.findFirst({ where: { reference, commuterId }, select: { reference: true, status: true } });
+  const payment = await prisma.payment.findFirst({ where: { reference, commuterId }, select: { reference: true, status: true, expiresAt: true } });
   if (!payment) redirect("/c/q-funds?payment=missing");
   if (payment.status === "SUCCEEDED") redirect("/c/q-funds?payment=success");
   if (payment.status === "FAILED") redirect("/c/q-funds?payment=failed");
@@ -20,5 +20,9 @@ export default async function QFundsReturnPage({ searchParams }: { searchParams:
     await releasePendingTripPayment(reference);
     redirect("/c/q-funds?payment=failed");
   }
-  redirect(`/c/q-funds?payment=${result === "PENDING" ? "processing" : "checking"}`);
+  if (result === "NOT_FOUND" && payment.expiresAt && payment.expiresAt <= new Date()) {
+    await releasePendingTripPayment(reference);
+    redirect("/c/q-funds?payment=failed");
+  }
+  redirect(`/c/q-funds?payment=${result === "PENDING" || result === "NOT_FOUND" ? "processing" : "checking"}`);
 }

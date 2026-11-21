@@ -2,7 +2,24 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 
-export type PaystackVerificationStatus = "SUCCESS" | "FAILED" | "PENDING" | "UNAVAILABLE";
+export type PaystackVerificationStatus = "SUCCESS" | "FAILED" | "PENDING" | "NOT_FOUND" | "UNAVAILABLE";
+
+/** Generate a transaction reference using only characters Paystack accepts. */
+export function createPaystackReference(): string {
+  return `qnot-${Date.now()}-${randomBytes(5).toString("hex")}`;
+}
+
+/**
+ * A provider-side 4xx response (except timeout/conflict) is a definite rejection.
+ * Network errors, timeouts, conflicts and 5xx responses remain ambiguous.
+ */
+export function isDefinitivePaystackInitializationRejection(
+  httpStatus: number,
+  providerAccepted?: boolean,
+): boolean {
+  if (httpStatus >= 200 && httpStatus < 300 && providerAccepted === false) return true;
+  return httpStatus >= 400 && httpStatus < 500 && httpStatus !== 408 && httpStatus !== 409;
+}
 
 export function paystackSignatureIsValid(rawBody: string, currentSignature: string | null, legacySignature: string | null): boolean {
   // New Paystack webhooks use a timestamped signature and a dedicated whsec_ secret.
@@ -109,6 +126,8 @@ export async function verifyPaystackReference(reference: string): Promise<Paysta
   } catch {
     return "UNAVAILABLE";
   }
+  // Paystack documents HTTP 404 here as "Transaction reference not found".
+  if (response.status === 404) return "NOT_FOUND";
   if (!response.ok) return "UNAVAILABLE";
   const result = await response.json().catch(() => null) as {
     status?: boolean;
@@ -140,7 +159,7 @@ export async function reconcileExpiredTripPayments(limit = 100) {
   for (const payment of expired) {
     const status = await verifyPaystackReference(payment.reference);
     if (status === "SUCCESS") summary.succeeded += 1;
-    else if (status === "FAILED") {
+    else if (status === "FAILED" || status === "NOT_FOUND") {
       await releasePendingTripPayment(payment.reference);
       summary.failed += 1;
     } else if (status === "PENDING") summary.stillPending += 1;

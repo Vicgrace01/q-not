@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import { cancelQueueEntryTx } from "@/lib/queue/cancel";
+import { createPaystackReference, isDefinitivePaystackInitializationRejection, releasePendingTripPayment } from "@/lib/payments/paystack";
 import { saveDriverLocationTx, setDriverLocationSharingTx } from "@/lib/driver/location-sharing";
 import { createCommuter, createTripWithCapacity, resetDb } from "./helpers/db";
 
@@ -24,6 +25,53 @@ describe("operational race protections", () => {
   beforeAll(async () => { await prisma.$connect(); }, 30_000);
   beforeEach(async () => { await resetDb(); });
   afterAll(async () => { await prisma.$disconnect(); });
+
+  it("generates transaction references accepted by Paystack", () => {
+    const reference = createPaystackReference();
+    expect(reference).toMatch(/^qnot-[0-9]+-[a-f0-9]{10}$/i);
+    expect(reference).toMatch(/^[a-z0-9.=-]+$/i);
+  });
+
+  it("distinguishes definitive Paystack rejections from ambiguous outcomes", () => {
+    expect(isDefinitivePaystackInitializationRejection(400, false)).toBe(true);
+    expect(isDefinitivePaystackInitializationRejection(401)).toBe(true);
+    expect(isDefinitivePaystackInitializationRejection(200, false)).toBe(true);
+    expect(isDefinitivePaystackInitializationRejection(408)).toBe(false);
+    expect(isDefinitivePaystackInitializationRejection(409)).toBe(false);
+    expect(isDefinitivePaystackInitializationRejection(500, false)).toBe(false);
+  });
+
+  it("releases a rejected pending Paystack seat hold exactly once", async () => {
+    const trip = await createTripWithCapacity(1);
+    const commuter = await createCommuter();
+    const reference = createPaystackReference();
+    await prisma.trip.update({ where: { id: trip.id }, data: { seatsReserved: 1 } });
+    await prisma.payment.create({
+      data: {
+        commuterId: commuter.id,
+        tripId: trip.id,
+        provider: "PAYSTACK",
+        reference,
+        amountKobo: 250_000,
+        currency: "NGN",
+        status: "PENDING",
+        purpose: "TRIP_FARE",
+        expiresAt: new Date(Date.now() + 8 * 60_000),
+      },
+    });
+
+    await Promise.all([
+      releasePendingTripPayment(reference),
+      releasePendingTripPayment(reference),
+    ]);
+
+    const [payment, finalTrip] = await Promise.all([
+      prisma.payment.findUnique({ where: { reference }, select: { status: true } }),
+      prisma.trip.findUnique({ where: { id: trip.id }, select: { seatsReserved: true } }),
+    ]);
+    expect(payment?.status).toBe("FAILED");
+    expect(finalTrip?.seatsReserved).toBe(0);
+  });
 
   it("does not let cancellation overwrite a cash-confirmed queue entry", async () => {
     const trip = await createTripWithCapacity(1);
