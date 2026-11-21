@@ -7,6 +7,7 @@ import { JoinButton } from "./join-button";
 import { PayTripButton } from "@/components/pay-trip-button";
 import { LiveTripMap } from "@/components/maps/live-trip-map";
 import { cancelQueueEntryFormAction } from "@/lib/actions/queue";
+import { countUnreservedCalledEntries } from "@/lib/queue/capacity";
 import { TripCabinPreview } from "@/components/trips/trip-cabin-preview";
 
 export const dynamic = "force-dynamic";
@@ -44,7 +45,11 @@ export default async function TripDetailPage({ params, searchParams }: { params:
     commuterId ? prisma.commuter.findUnique({ where: { id: commuterId }, select: { email: true, emailVerifiedAt: true } }) : null,
     commuterId ? prisma.ticket.findFirst({ where: { tripId: trip.id, commuterId, status: { in: ["ISSUED", "USED"] } }, select: { id: true } }) : null,
   ]);
-  const seatsLeft = Math.max(0, trip.bus.capacity - trip.seatsTaken - trip.seatsReserved);
+  const [calledSeatClaims, viewerOtherCalledClaims] = await Promise.all([
+    prisma.$transaction((tx) => countUnreservedCalledEntries(tx, trip.id)),
+    prisma.$transaction((tx) => countUnreservedCalledEntries(tx, trip.id, commuterId)),
+  ]);
+  const seatsLeft = Math.max(0, trip.bus.capacity - trip.seatsTaken - trip.seatsReserved - viewerOtherCalledClaims);
   const departing = trip.departureTime.toLocaleString("en-NG", { timeZone: "Africa/Lagos", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short", year: "numeric" });
   const stops = trip.route.stops.map((stop) => ({ id: stop.id, name: stop.name, latitude: stop.latitude, longitude: stop.longitude, sequence: stop.sequence }));
   const statusLabel = trip.status.replaceAll("_", " ").toLowerCase().replace(/(^|\s)\S/g, (part) => part.toUpperCase());
@@ -74,7 +79,7 @@ export default async function TripDetailPage({ params, searchParams }: { params:
         </div>
         <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5"><h2 className="text-lg font-bold">Vehicle details</h2><dl className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-4"><dt className="text-neutral-400">Vehicle class</dt><dd>{trip.bus.vehicleType}</dd></div><div className="flex justify-between gap-4"><dt className="text-neutral-400">Colour</dt><dd>{trip.bus.colour ?? "Not supplied"}</dd></div><div className="flex justify-between gap-4"><dt className="text-neutral-400">Capacity</dt><dd>{trip.bus.capacity} passengers</dd></div><div className="flex justify-between gap-4"><dt className="text-neutral-400">Departure time</dt><dd>{departing}</dd></div></dl><p className="mt-5 text-xs leading-relaxed text-neutral-500">Driver and vehicle approval status is displayed from the transport records. Q-not does not display private identity or licence numbers.</p></div>
       </section>
-      <TripCabinPreview capacity={trip.bus.capacity} occupied={trip.seatsTaken} held={trip.seatsReserved} vehicleType={trip.bus.vehicleType} plateNumber={trip.bus.plateNumber}/>
+      <TripCabinPreview capacity={trip.bus.capacity} occupied={trip.seatsTaken} held={trip.seatsReserved + calledSeatClaims} vehicleType={trip.bus.vehicleType} plateNumber={trip.bus.plateNumber}/>
       <LiveTripMap tripId={trip.id} routeId={trip.route.id} initialStops={stops} canTrackLocation={!!trackingTicket}/>
       {!env.PAYSTACK_SECRET_KEY && trip.fareKobo > 0 && <p className="mt-4 text-xs text-neutral-500">Online fare checkout will appear when the payment provider is configured for this environment. Cash fares can be recorded by the driver during boarding.</p>}
     </main>

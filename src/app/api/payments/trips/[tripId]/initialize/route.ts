@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { getCommuterId } from "@/lib/session";
+import { countUnreservedCalledEntries } from "@/lib/queue/capacity";
 import {
   createPaystackReference,
   isDefinitivePaystackInitializationRejection,
@@ -84,7 +85,10 @@ export async function POST(_request: NextRequest, context: { params: Promise<{ t
       }
       if (!["SCHEDULED", "BOARDING"].includes(trip.status)) throw new Error("TRIP_CLOSED");
       if (trip.fareKobo <= 0) throw new Error("FARE_NOT_SET");
-      if (trip.seatsTaken + trip.seatsReserved >= bus.capacity) throw new Error("NO_SEATS");
+      // CALLED queue entries already claim seats. Exclude this passenger because
+      // checkout converts their own claim into seatsReserved in this transaction.
+      const calledSeatClaims = await countUnreservedCalledEntries(tx, tripId, commuterId);
+      if (trip.seatsTaken + trip.seatsReserved + calledSeatClaims >= bus.capacity) throw new Error("NO_SEATS");
       amountKobo = trip.fareKobo;
       await tx.trip.update({ where: { id: tripId }, data: { seatsReserved: { increment: 1 } } });
       await tx.payment.create({

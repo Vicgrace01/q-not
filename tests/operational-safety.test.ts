@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import { cancelQueueEntryTx } from "@/lib/queue/cancel";
 import { createPaystackReference, isDefinitivePaystackInitializationRejection, releasePendingTripPayment } from "@/lib/payments/paystack";
+import { countUnreservedCalledEntries } from "@/lib/queue/capacity";
 import { saveDriverLocationTx, setDriverLocationSharingTx } from "@/lib/driver/location-sharing";
 import { createCommuter, createTripWithCapacity, resetDb } from "./helpers/db";
 
@@ -41,6 +42,53 @@ describe("operational race protections", () => {
     expect(isDefinitivePaystackInitializationRejection(500, false)).toBe(false);
   });
 
+  it("counts called seats without double-counting a pending online payment", async () => {
+    const trip = await createTripWithCapacity(2);
+    const calledPassenger = await createCommuter();
+    const payingCalledPassenger = await createCommuter();
+    const newPassenger = await createCommuter();
+
+    await createCalledEntry(trip.id, calledPassenger.id);
+    await createCalledEntry(trip.id, payingCalledPassenger.id);
+
+    const reference = createPaystackReference();
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Trip" WHERE id = ${trip.id} FOR UPDATE`;
+      await tx.trip.update({ where: { id: trip.id }, data: { seatsReserved: { increment: 1 } } });
+      await tx.payment.create({
+        data: {
+          commuterId: payingCalledPassenger.id,
+          tripId: trip.id,
+          provider: "PAYSTACK",
+          reference,
+          amountKobo: 250_000,
+          currency: "NGN",
+          status: "PENDING",
+          purpose: "TRIP_FARE",
+          expiresAt: new Date(Date.now() + 8 * 60_000),
+        },
+      });
+    });
+
+    const [allUnreservedClaims, claimsForCalledPassenger, claimsForNewPassenger, currentTrip] = await Promise.all([
+      prisma.$transaction((tx) => countUnreservedCalledEntries(tx, trip.id)),
+      prisma.$transaction((tx) => countUnreservedCalledEntries(tx, trip.id, calledPassenger.id)),
+      prisma.$transaction((tx) => countUnreservedCalledEntries(tx, trip.id, newPassenger.id)),
+      prisma.trip.findUnique({ where: { id: trip.id }, include: { bus: { select: { capacity: true } } } }),
+    ]);
+
+    expect(allUnreservedClaims).toBe(1);
+    expect(claimsForCalledPassenger).toBe(0);
+    expect(claimsForNewPassenger).toBe(1);
+    expect(
+      (currentTrip?.seatsTaken ?? 0) +
+      (currentTrip?.seatsReserved ?? 0) +
+      claimsForNewPassenger,
+    ).toBe(currentTrip?.bus.capacity);
+
+    await releasePendingTripPayment(reference);
+    expect(await prisma.$transaction((tx) => countUnreservedCalledEntries(tx, trip.id))).toBe(2);
+  });
   it("releases a rejected pending Paystack seat hold exactly once", async () => {
     const trip = await createTripWithCapacity(1);
     const commuter = await createCommuter();

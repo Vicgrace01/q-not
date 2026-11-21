@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getDriverId } from "@/lib/session";
 import { parseLagosDateTime } from "@/lib/dates";
+import { countUnreservedCalledEntries } from "@/lib/queue/capacity";
 
 export type DriverOperationState = { error?: string };
 
@@ -135,7 +136,7 @@ export async function callNextPassengerAction(formData: FormData): Promise<void>
     await prisma.$transaction(async (tx) => {
       const service = await lockApprovedService(tx, tripId, driverId, ["BOARDING"]);
       if (!service) throw new Error("boarding-not-open");
-      const calledCount = await tx.queueEntry.count({ where: { tripId, status: "CALLED" } });
+      const calledCount = await countUnreservedCalledEntries(tx, tripId);
       if (service.seatsTaken + service.seatsReserved + calledCount >= service.capacity) throw new Error("vehicle-full");
       const next = await tx.queueEntry.findFirst({ where: { tripId, status: "WAITING" }, orderBy: [{ position: "asc" }, { joinedAt: "asc" }] });
       if (!next) throw new Error("queue-empty");
@@ -166,6 +167,8 @@ export async function acceptCashFareAction(formData: FormData): Promise<void> {
       if (service.fareKobo <= 0) throw new Error("fare-not-set");
       const existingPaid = await tx.payment.findFirst({ where: { tripId, commuterId: entry.commuterId, status: "SUCCEEDED", purpose: "TRIP_FARE" }, select: { id: true } });
       if (existingPaid) throw new Error("fare-already-paid");
+      const pendingOnlinePayment = await tx.payment.findFirst({ where: { tripId, commuterId: entry.commuterId, status: "PENDING", purpose: "TRIP_FARE" }, select: { id: true } });
+      if (pendingOnlinePayment) throw new Error("online-payment-pending");
       const reference = `qnot_cash_${Date.now()}_${randomBytes(4).toString("hex")}`;
       await tx.payment.create({ data: { commuterId: entry.commuterId, tripId, provider: "CASH", reference, amountKobo: service.fareKobo, currency: "NGN", status: "SUCCEEDED", purpose: "TRIP_FARE", paidAt: new Date() } });
       await tx.queueEntry.update({ where: { id: entry.id }, data: { status: "CONFIRMED", resolvedAt: null } });
