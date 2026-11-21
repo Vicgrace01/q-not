@@ -1,4 +1,4 @@
-﻿import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 import { env } from "@/lib/env";
 
@@ -8,9 +8,11 @@ const globalForPrisma = globalThis as unknown as {
 
 function createPrismaClient(): PrismaClient {
   const adapter = new PrismaPg({
-    connectionString: env.DATABASE_URL,
-    max: 10,
-    connectionTimeoutMillis: 30_000,
+    // Prefer Neon PgBouncer for the running web app. prisma.config.ts continues
+    // using DATABASE_URL (the direct endpoint) for migrations and schema tasks.
+    connectionString: env.DATABASE_URL_POOLED ?? env.DATABASE_URL,
+    max: 4,
+    connectionTimeoutMillis: 15_000,
     idleTimeoutMillis: 10_000,
   });
 
@@ -24,7 +26,7 @@ function createPrismaClient(): PrismaClient {
         : { maxWait: 15_000, timeout: 30_000 },
     log:
       process.env.NODE_ENV === "development"
-        ? ["query", "error", "warn"]
+        ? ["error", "warn"]
         : ["error"],
   });
 }

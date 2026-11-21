@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCommuterId } from "@/lib/session";
 import { joinQueueTx, type JoinResult } from "@/lib/queue/join";
+import { cancelQueueEntryTx } from "@/lib/queue/cancel";
 
 export type JoinQueueActionResult =
   | { ok: true; entryId: string; position: number }
@@ -11,7 +12,6 @@ export type JoinQueueActionResult =
 
 const REASON_MESSAGES: Record<string, string> = {
   "trip-not-found": "That trip no longer exists.",
-  "no-seats": "No seats left on this trip. Try the next one.",
   "already-queued": "You're already in the queue for this trip.",
   "trip-not-boarding": "This trip is not accepting passengers right now.",
 };
@@ -56,4 +56,24 @@ export async function joinQueueAndRedirect(tripId: string): Promise<void> {
     redirect(`/trips/${tripId}?error=${encodeURIComponent(result.error)}`);
   }
   redirect("/c/tickets");
+}
+
+
+export async function cancelQueueAction(tripId: string): Promise<{ ok: boolean; error?: string }> {
+  const commuterId = await getCommuterId();
+  if (!commuterId) return { ok: false, error: "not-signed-in" };
+  const result = await cancelQueueEntryTx(tripId, commuterId);
+  if (!result) return { ok: false, error: "This queue entry can no longer be cancelled." };
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath("/c/dashboard");
+  revalidatePath("/c/tickets");
+  return { ok: true };
+}
+
+
+export async function cancelQueueEntryFormAction(formData: FormData): Promise<void> {
+  const tripId = String(formData.get("tripId") ?? "");
+  const result = await cancelQueueAction(tripId);
+  if (!result.ok) redirect(`/trips/${encodeURIComponent(tripId)}?error=${encodeURIComponent(result.error ?? "queue-cancel-failed")}`);
+  redirect(`/trips/${encodeURIComponent(tripId)}?queue=cancelled`);
 }

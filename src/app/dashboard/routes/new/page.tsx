@@ -16,7 +16,7 @@ export default function NewRoutePage() {
   );
 
   return (
-    <div className="max-w-lg">
+    <div className="qnot-dashboard-content qnot-route-form">
       <h1 className="text-2xl font-semibold">New route</h1>
       <p className="mt-1 text-sm text-neutral-400">
         Define the origin and destination for a route. Add stops after

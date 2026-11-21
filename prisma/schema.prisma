@@ -1,6 +1,6 @@
-
-// Q-Not — Prisma schema
-// See ARCHITECTURE.md and DECISIONS.md for the reasoning behind each model.
+// Q-not transport network data model.
+// The schema separates a queue position, a paid seat, a vehicle, its owner,
+// and the driver operating it. Sensitive identity evidence is never stored raw.
 
 generator client {
   provider = "prisma-client"
@@ -11,90 +11,43 @@ datasource db {
   provider = "postgresql"
 }
 
-// ---------- People ----------
-
-model Operator {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  phone        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  routes  Route[]
-  buses   Bus[]
-  trips   Trip[]
-  drivers Driver[]
+enum VerificationStatus {
+  NOT_STARTED
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+  SUSPENDED
 }
 
-model Driver {
-  id         String   @id @default(cuid())
-  name       String
-  phone      String   @unique
-  operatorId String
-  operator   Operator @relation(fields: [operatorId], references: [id])
-  createdAt  DateTime @default(now())
-
-  sessions DriverSession[]
-  trips    Trip[]
-
-  @@index([operatorId])
+enum VehicleType {
+  DANFO
+  KOROPE
+  HIACE
+  COASTER
+  SHUTTLE
+  OTHER
 }
 
-model Commuter {
-  id          String   @id @default(cuid())
-  phone       String   @unique
-  displayName String?
-  createdAt   DateTime @default(now())
-
-  queueEntries QueueEntry[]
-  tickets      Ticket[]
-  messages     Message[]
+enum AuthRole {
+  PASSENGER
+  OPERATOR
+  DRIVER
 }
 
-// ---------- Network ----------
-
-model Route {
-  id          String   @id @default(cuid())
-  operatorId  String
-  operator    Operator @relation(fields: [operatorId], references: [id])
-  origin      String
-  destination String
-  createdAt   DateTime @default(now())
-
-  stops Stop[]
-  trips Trip[]
-
-  @@index([operatorId])
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
 }
 
-model Stop {
-  id        String @id @default(cuid())
-  routeId   String
-  route     Route  @relation(fields: [routeId], references: [id])
-  name      String
-  latitude  Float
-  longitude Float
-  sequence  Int
-
-  @@index([routeId])
+enum JourneyRequestStatus {
+  OPEN
+  MATCHED
+  CANCELLED
+  EXPIRED
 }
-
-model Bus {
-  id          String   @id @default(cuid())
-  operatorId  String
-  operator    Operator @relation(fields: [operatorId], references: [id])
-  plateNumber String   @unique
-  capacity    Int
-  createdAt   DateTime @default(now())
-
-  trips Trip[]
-
-  @@index([operatorId])
-}
-
-// ---------- Operations ----------
 
 enum TripStatus {
   SCHEDULED
@@ -104,61 +57,295 @@ enum TripStatus {
   CANCELLED
 }
 
-model Trip {
-  id            String     @id @default(cuid())
-  routeId       String
-  route         Route      @relation(fields: [routeId], references: [id])
-  busId         String
-  bus           Bus        @relation(fields: [busId], references: [id])
-  operatorId    String
-  operator      Operator   @relation(fields: [operatorId], references: [id])
-  driverId      String?
-  driver        Driver?    @relation(fields: [driverId], references: [id])
-  departureTime DateTime
-  status        TripStatus @default(SCHEDULED)
-  seatsTaken    Int        @default(0)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-
-  sessions     DriverSession[]
-  queueEntries QueueEntry[]
-  tickets      Ticket[]
-
-  @@index([routeId, departureTime])
-  @@index([operatorId, status])
-}
-
 enum DriverSessionStatus {
   ACTIVE
   STALE
   ENDED
 }
 
-model DriverSession {
-  id           String              @id @default(cuid())
-  tripId       String
-  trip         Trip                @relation(fields: [tripId], references: [id])
-  driverId     String
-  driver       Driver              @relation(fields: [driverId], references: [id])
-  lastLat      Float?
-  lastLng      Float?
-  lastUpdateAt DateTime?
-  status       DriverSessionStatus @default(ACTIVE)
-  startedAt    DateTime            @default(now())
-  endedAt      DateTime?
-
-  @@index([tripId])
-}
-
-// ---------- Commuter flow ----------
-
 enum QueueStatus {
   WAITING
+  CALLED
+  CONFIRMED
   SEATED
   CANCELLED
   EXPIRED
 }
 
+enum TicketStatus {
+  ISSUED
+  USED
+  CANCELLED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+// ---------- Accounts ----------
+model Operator {
+  id                 String             @id @default(cuid())
+  name               String
+  email              String             @unique
+  phone              String?            @unique
+  passwordHash       String?
+  emailVerifiedAt    DateTime?
+  verificationStatus VerificationStatus @default(PENDING)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  routes     Route[]
+  buses      Bus[]
+  trips      Trip[]
+  drivers    Driver[]
+  identities AuthIdentity[]
+}
+
+model Driver {
+  id                 String             @id @default(cuid())
+  name               String
+  phone              String?            @unique
+  email              String?            @unique
+  operatorId         String?
+  operator           Operator?          @relation(fields: [operatorId], references: [id], onDelete: SetNull)
+  phoneVerifiedAt    DateTime?
+  emailVerifiedAt    DateTime?
+  verificationStatus VerificationStatus @default(PENDING)
+  licenceLastFour    String?
+  licenceExpiry      DateTime?
+  experienceYears    Int?
+  profilePhotoUrl    String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @default(now()) @updatedAt
+
+  sessions           DriverSession[]
+  trips              Trip[]
+  vehicleAssignments DriverVehicleAssignment[]
+  ownedBuses         Bus[]                     @relation("BusOwner")
+  routeApprovals     DriverRouteApproval[]
+  verifications      DriverVerification[]
+  identities         AuthIdentity[]
+
+  @@index([operatorId, verificationStatus])
+}
+
+model Commuter {
+  id                    String    @id @default(cuid())
+  phone                 String?   @unique
+  email                 String?   @unique
+  displayName           String?
+  emailVerifiedAt       DateTime?
+  phoneVerifiedAt       DateTime?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @default(now()) @updatedAt
+
+  queueEntries    QueueEntry[]
+  tickets         Ticket[]
+  messages        Message[]
+  identities      AuthIdentity[]
+  payments        Payment[]
+  journeyRequests JourneyRequest[]
+}
+
+model AuthIdentity {
+  id                String    @id @default(cuid())
+  provider          String
+  providerAccountId String
+  role              AuthRole
+  email             String
+  operatorId        String?
+  operator          Operator? @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  commuterId        String?
+  commuter          Commuter? @relation(fields: [commuterId], references: [id], onDelete: Cascade)
+  driverId          String?
+  driver            Driver?   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  createdAt         DateTime  @default(now())
+
+  @@unique([provider, providerAccountId, role])
+  @@index([operatorId])
+  @@index([commuterId])
+  @@index([driverId])
+}
+
+model OtpChallenge {
+  id                String    @id @default(cuid())
+  identifier        String
+  purpose           String
+  channel           String
+  provider          String
+  providerReference String?
+  codeHash          String?
+  expiresAt         DateTime
+  attempts          Int       @default(0)
+  consumedAt        DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@index([identifier, purpose, createdAt])
+  @@index([expiresAt])
+}
+
+// ---------- Routes and vehicles ----------
+model Route {
+  id          String    @id @default(cuid())
+  operatorId  String?
+  operator    Operator? @relation(fields: [operatorId], references: [id], onDelete: SetNull)
+  origin      String
+  destination String
+  createdAt   DateTime  @default(now())
+
+  stops           Stop[]
+  trips           Trip[]
+  driverApprovals DriverRouteApproval[]
+  journeyRequests JourneyRequest[]
+
+  @@index([operatorId])
+}
+
+model Stop {
+  id                       String           @id @default(cuid())
+  routeId                  String
+  route                    Route            @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  name                     String
+  latitude                 Float
+  longitude                Float
+  sequence                 Int
+  journeyBoardingRequests  JourneyRequest[] @relation("JourneyBoardingStop")
+  journeyAlightingRequests JourneyRequest[] @relation("JourneyAlightingStop")
+
+  @@unique([routeId, sequence])
+  @@index([routeId])
+}
+
+model Bus {
+  id                 String             @id @default(cuid())
+  operatorId         String?
+  operator           Operator?          @relation(fields: [operatorId], references: [id], onDelete: SetNull)
+  ownerDriverId      String?
+  ownerDriver        Driver?            @relation("BusOwner", fields: [ownerDriverId], references: [id], onDelete: SetNull)
+  plateNumber        String             @unique
+  capacity           Int
+  vehicleType        VehicleType        @default(KOROPE)
+  make               String?
+  model              String?
+  modelYear          Int?
+  colour             String?
+  photoUrl           String?
+  registrationExpiry DateTime?
+  insuranceExpiry    DateTime?
+  inspectionExpiry   DateTime?
+  verificationStatus VerificationStatus @default(PENDING)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @default(now()) @updatedAt
+
+  trips       Trip[]
+  assignments DriverVehicleAssignment[]
+
+  @@index([operatorId, verificationStatus])
+  @@index([ownerDriverId])
+}
+
+model DriverVehicleAssignment {
+  id         String    @id @default(cuid())
+  driverId   String
+  driver     Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  busId      String
+  bus        Bus       @relation(fields: [busId], references: [id], onDelete: Cascade)
+  assignedAt DateTime  @default(now())
+  revokedAt  DateTime?
+
+  @@unique([driverId, busId])
+  @@index([driverId, revokedAt])
+  @@index([busId, revokedAt])
+}
+
+model DriverRouteApproval {
+  id         String             @id @default(cuid())
+  driverId   String
+  driver     Driver             @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  routeId    String
+  route      Route              @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  status     VerificationStatus @default(PENDING)
+  reviewedAt DateTime?
+  createdAt  DateTime           @default(now())
+
+  @@unique([driverId, routeId])
+  @@index([routeId, status])
+}
+
+model DriverVerification {
+  id          String             @id @default(cuid())
+  driverId    String
+  driver      Driver             @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  kind        String
+  provider    String?
+  providerRef String?
+  status      VerificationStatus @default(PENDING)
+  consentAt   DateTime?
+  expiresAt   DateTime?
+  reviewedAt  DateTime?
+  notes       String?
+  createdAt   DateTime           @default(now())
+
+  @@index([driverId, kind, status])
+}
+
+// ---------- Trips and location ----------
+model Trip {
+  id            String     @id @default(cuid())
+  routeId       String
+  route         Route      @relation(fields: [routeId], references: [id])
+  busId         String
+  bus           Bus        @relation(fields: [busId], references: [id])
+  operatorId    String?
+  operator      Operator?  @relation(fields: [operatorId], references: [id], onDelete: SetNull)
+  driverId      String?
+  driver        Driver?    @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  departureTime DateTime
+  status        TripStatus @default(SCHEDULED)
+  seatsTaken    Int        @default(0)
+  seatsReserved Int        @default(0)
+  fareKobo      Int        @default(0)
+  currency      String     @default("NGN")
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  sessions               DriverSession[]
+  queueEntries           QueueEntry[]
+  tickets                Ticket[]
+  payments               Payment[]
+  matchedJourneyRequests JourneyRequest[]
+
+  @@index([routeId, departureTime])
+  @@index([operatorId, status])
+  @@index([driverId, status])
+}
+
+model DriverSession {
+  id                     String              @id @default(cuid())
+  tripId                 String
+  trip                   Trip                @relation(fields: [tripId], references: [id], onDelete: Restrict)
+  driverId               String
+  driver                 Driver              @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  lastLat                Float?
+  lastLng                Float?
+  accuracyMeters         Float?
+  headingDegrees         Float?
+  speedKph               Float?
+  lastUpdateAt           DateTime?
+  locationCapturedAt     DateTime?
+  locationSharingEnabled Boolean             @default(false)
+  status                 DriverSessionStatus @default(ACTIVE)
+  startedAt              DateTime            @default(now())
+  endedAt                DateTime?
+
+  @@index([tripId, status])
+  @@index([driverId, status])
+}
+
+// ---------- Passenger queue, tickets and payments ----------
 model QueueEntry {
   id         String      @id @default(cuid())
   tripId     String
@@ -172,12 +359,6 @@ model QueueEntry {
 
   @@unique([tripId, commuterId])
   @@index([tripId, status, position])
-}
-
-enum TicketStatus {
-  ISSUED
-  USED
-  CANCELLED
 }
 
 model Ticket {
@@ -195,8 +376,55 @@ model Ticket {
   @@index([commuterId])
 }
 
-// ---------- External signals ----------
+model Payment {
+  id                String        @id @default(cuid())
+  commuterId        String
+  commuter          Commuter      @relation(fields: [commuterId], references: [id], onDelete: Restrict)
+  tripId            String?
+  trip              Trip?         @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  provider          String        @default("PAYSTACK")
+  reference         String        @unique
+  amountKobo        Int
+  currency          String        @default("NGN")
+  status            PaymentStatus @default(PENDING)
+  expiresAt         DateTime?
+  purpose           String        @default("TRIP_FARE")
+  checkoutUrl       String?
+  providerReference String?
+  paidAt            DateTime?
+  metadata          Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
+  @@index([commuterId, createdAt])
+  @@index([tripId, status])
+  @@index([status, expiresAt])
+}
+
+model JourneyRequest {
+  id                 String               @id @default(cuid())
+  commuterId         String
+  commuter           Commuter             @relation(fields: [commuterId], references: [id], onDelete: Cascade)
+  routeId            String
+  route              Route                @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  boardingStopId     String
+  boardingStop       Stop                 @relation("JourneyBoardingStop", fields: [boardingStopId], references: [id], onDelete: Restrict)
+  alightingStopId    String
+  alightingStop      Stop                 @relation("JourneyAlightingStop", fields: [alightingStopId], references: [id], onDelete: Restrict)
+  desiredDepartureAt DateTime
+  passengerCount     Int                  @default(1)
+  status             JourneyRequestStatus @default(OPEN)
+  matchedTripId      String?
+  matchedTrip        Trip?                @relation(fields: [matchedTripId], references: [id], onDelete: SetNull)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([routeId, status, desiredDepartureAt])
+  @@index([matchedTripId])
+  @@index([commuterId, createdAt])
+}
+
+// ---------- External signals ----------
 model TapEvent {
   id         String   @id @default(cuid())
   eventId    String   @unique
@@ -206,11 +434,6 @@ model TapEvent {
   receivedAt DateTime @default(now())
 
   @@index([tripId])
-}
-
-enum MessageDirection {
-  INBOUND
-  OUTBOUND
 }
 
 model Message {

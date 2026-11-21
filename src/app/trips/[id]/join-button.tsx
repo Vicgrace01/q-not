@@ -32,7 +32,7 @@ export function JoinButton({ tripId }: { tripId: string }) {
         disabled={pending}
         className="rounded bg-white px-5 py-3 text-sm font-medium text-neutral-950 hover:bg-neutral-200 disabled:opacity-50"
       >
-        {pending ? "Joining..." : "Join queue"}
+        {pending ? "Joining queue..." : "Join departure queue"}
       </button>
       {error && (
         <p className="mt-3 rounded bg-red-950 px-4 py-3 text-sm text-red-300">

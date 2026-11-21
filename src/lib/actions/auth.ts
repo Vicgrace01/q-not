@@ -94,7 +94,9 @@ export async function loginAction(
     return { error: { _form: ["Invalid email or password"] } };
   }
 
-  const valid = await verifyPassword(parsed.data.password, operator.passwordHash);
+  const valid = operator.passwordHash
+    ? await verifyPassword(parsed.data.password, operator.passwordHash)
+    : false;
   if (!valid) {
     return { error: { _form: ["Invalid email or password"] } };
   }

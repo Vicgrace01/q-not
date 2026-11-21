@@ -1,97 +1,41 @@
-import {
-  describe,
-  it,
-  expect,
-  beforeAll,
-  beforeEach,
-  afterAll,
-} from "vitest";import { prisma } from "@/lib/db";
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
+import { prisma } from "@/lib/db";
 import { joinQueueTx } from "@/lib/queue/join";
-import {
-  resetDb,
-  createCommuter,
-  createTripWithCapacity,
-} from "./helpers/db";
+import { resetDb, createCommuter, createTripWithCapacity } from "./helpers/db";
 
-describe("seat race", () => {
-  beforeAll(async () => {
-    await prisma.$connect();
-  }, 30_000);
-  beforeEach(async () => {
-    await resetDb();
-  });
+describe("virtual departure queue", () => {
+  beforeAll(async () => { await prisma.$connect(); }, 30_000);
+  beforeEach(async () => { await resetDb(); });
+  afterAll(async () => { await prisma.$disconnect(); });
 
-  afterAll(async () => {
-    await prisma.$disconnect();
-  });
-
-  it("seats exactly one commuter when two race for the last seat", async () => {
-    const trip = await createTripWithCapacity(1); // capacity = 1
-    const c1 = await createCommuter();
-    const c2 = await createCommuter();
-
-    // Fire both requests at the same time.
-    // `Promise.all` starts both before either resolves.
-    const [r1, r2] = await Promise.all([
-      joinQueueTx(c1.id, trip.id),
-      joinQueueTx(c2.id, trip.id),
-    ]);
-
-    const winners = [r1, r2].filter((r) => r.ok);
-    const losers = [r1, r2].filter((r) => !r.ok);
-
-    // Exactly one winner. This is the whole point of the test.
-    expect(winners).toHaveLength(1);
-    expect(losers).toHaveLength(1);
-
-    // The loser failed because the seat was gone.
-    expect(losers[0]).toMatchObject({ ok: false, reason: "no-seats" });
-
-    // The database agrees: exactly one seat taken.
+  it("accepts route demand without consuming physical seats", async () => {
+    const trip = await createTripWithCapacity(1);
+    const commuters = await Promise.all(Array.from({ length: 3 }, () => createCommuter()));
+    const results = await Promise.all(commuters.map((commuter) => joinQueueTx(commuter.id, trip.id)));
+    expect(results.every((result) => result.ok)).toBe(true);
     const finalTrip = await prisma.trip.findUnique({ where: { id: trip.id } });
-    expect(finalTrip?.seatsTaken).toBe(1);
+    expect(finalTrip?.seatsTaken).toBe(0);
+    expect(finalTrip?.seatsReserved).toBe(0);
+    const entries = await prisma.queueEntry.findMany({ where: { tripId: trip.id }, orderBy: { position: "asc" } });
+    expect(entries).toHaveLength(3);
+    expect(entries.map((entry) => entry.position)).toEqual([1, 2, 3]);
+  });
 
-    // And exactly one QueueEntry exists.
+  it("prevents the same commuter from joining twice under concurrent requests", async () => {
+    const trip = await createTripWithCapacity(5);
+    const commuter = await createCommuter();
+    const [first, second] = await Promise.all([joinQueueTx(commuter.id, trip.id), joinQueueTx(commuter.id, trip.id)]);
+    expect([first, second].filter((result) => result.ok)).toHaveLength(1);
+    expect([first, second].filter((result) => !result.ok)).toHaveLength(1);
+    expect([first, second].some((result) => !result.ok && result.reason === "already-queued")).toBe(true);
     const entries = await prisma.queueEntry.findMany({ where: { tripId: trip.id } });
     expect(entries).toHaveLength(1);
   });
 
-  it("seats N commuters out of M > N racing requests", async () => {
-    const CAPACITY = 5;
-    const RACERS = 12;
-
-    const trip = await createTripWithCapacity(CAPACITY);
-    const commuters = await Promise.all(
-      Array.from({ length: RACERS }, () => createCommuter()),
-    );
-
-    const results = await Promise.all(
-      commuters.map((c) => joinQueueTx(c.id, trip.id)),
-    );
-
-    const winners = results.filter((r) => r.ok);
-    const seatLosers = results.filter(
-      (r) => !r.ok && r.reason === "no-seats",
-    );
-
-    expect(winners).toHaveLength(CAPACITY);
-    expect(seatLosers).toHaveLength(RACERS - CAPACITY);
-
-    const finalTrip = await prisma.trip.findUnique({ where: { id: trip.id } });
-    expect(finalTrip?.seatsTaken).toBe(CAPACITY);
-  });
-
-  it("prevents the same commuter from joining twice", async () => {
+  it("does not accept passengers after departure", async () => {
     const trip = await createTripWithCapacity(5);
+    await prisma.trip.update({ where: { id: trip.id }, data: { status: "IN_TRANSIT" } });
     const commuter = await createCommuter();
-
-    const first = await joinQueueTx(commuter.id, trip.id);
-    const second = await joinQueueTx(commuter.id, trip.id);
-
-    expect(first.ok).toBe(true);
-    expect(second).toMatchObject({ ok: false, reason: "already-queued" });
-
-    const finalTrip = await prisma.trip.findUnique({ where: { id: trip.id } });
-    expect(finalTrip?.seatsTaken).toBe(1);
+    expect(await joinQueueTx(commuter.id, trip.id)).toMatchObject({ ok: false, reason: "trip-not-boarding" });
   });
 });

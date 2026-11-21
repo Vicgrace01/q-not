@@ -100,6 +100,9 @@ export default function SignupPage() {
         </button>
       </form>
 
+      <a href="/api/auth/google?role=operator" className="mt-4 flex items-center justify-center gap-2 rounded border border-neutral-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-800">
+        <span aria-hidden="true" className="font-bold">G</span> Create account with Google
+      </a>
       <p className="mt-4 text-center text-sm text-neutral-400">
         Already have an account?{" "}
         <Link href="/login" className="text-white underline">
