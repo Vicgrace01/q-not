@@ -1,3 +1,6 @@
+packages:
+  - '.'
+
 minimumReleaseAgeExclude:
   - baseline-browser-mapping@2.11.39
   - electron-to-chromium@1.5.492

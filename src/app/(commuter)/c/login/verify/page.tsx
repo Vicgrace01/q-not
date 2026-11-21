@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { Suspense } from "react";
@@ -14,13 +14,14 @@ const initialState: CommuterAuthState = {};
 function VerifyInner() {
   const params = useSearchParams();
   const phone = params.get("phone") ?? "";
+  const delivery = params.get("delivery") ?? "LOCAL";
   const [state, formAction, pending] = useActionState(
     verifyOtpAction,
     initialState,
   );
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-50 flex items-center justify-center px-4">
+    <div className="qnot-auth-shell qnot-commuter-auth">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link href="/" className="text-2xl font-semibold">
@@ -29,6 +30,7 @@ function VerifyInner() {
           <p className="mt-1 text-sm text-neutral-400">
             Enter the 6-digit code for {phone}
           </p>
+          <p className="mt-2 text-xs text-neutral-500">{delivery === "SMS" ? "A code was sent by SMS." : "Local development: find the code in the terminal running Q-not."}</p>
         </div>
 
         <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-6">

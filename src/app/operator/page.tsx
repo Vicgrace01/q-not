@@ -1,5 +1,5 @@
-import { QNotOperator } from "@/components/qnot-experience";
+import { redirect } from "next/navigation";
 
 export default function OperatorPage() {
-  return <QNotOperator />;
+  redirect("/dashboard");
 }

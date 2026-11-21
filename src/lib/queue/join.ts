@@ -2,80 +2,54 @@ import { prisma } from "@/lib/db";
 
 export type JoinResult =
   | { ok: true; entryId: string; position: number }
-  | { ok: false; reason: "trip-not-found" | "no-seats" | "already-queued" | "trip-not-boarding" };
+  | { ok: false; reason: "trip-not-found" | "already-queued" | "trip-not-boarding" };
 
 /**
- * Join the queue for a trip. This is the ONLY place a commuter gets a seat.
- *
- * The concurrency problem:
- *   Without a lock, two requests both read "seatsTaken=14, capacity=15",
- *   both decide there's room, both increment, and the bus oversells.
- *
- * The fix:
- *   SELECT ... FOR UPDATE on the Trip row. Postgres locks it. Any other
- *   transaction that tries to lock the same row waits until we commit.
- *   Then it re-reads seatsTaken and sees the updated value.
- *
- * See DECISIONS.md ADR-005, tests/seat-race.test.ts, BUGS.md.
+ * Join the virtual departure queue. Queue demand is NOT a physical seat hold.
+ * Confirmed bookings increment Trip.seatsReserved, and boarding moves one
+ * reserved seat into Trip.seatsTaken. This separation prevents a queue click
+ * from consuming capacity before a passenger has a confirmed booking.
  */
-export async function joinQueueTx(
-  commuterId: string,
-  tripId: string,
-): Promise<JoinResult> {
+export async function joinQueueTx(commuterId: string, tripId: string): Promise<JoinResult> {
   return prisma.$transaction(async (tx) => {
-    // 1. Lock the Trip row. Any concurrent transaction on this same trip
-    //    waits here until we finish.
-    const locked = await tx.$queryRaw<Array<{ id: string; seatsTaken: number; status: string }>>`
-      SELECT id, "seatsTaken", status FROM "Trip" WHERE id = ${tripId} FOR UPDATE
+    const locked = await tx.$queryRaw<Array<{ id: string; status: string }>>`
+      SELECT t.id, t.status
+      FROM "Trip" t
+      JOIN "Bus" b ON b.id = t."busId"
+      JOIN "Driver" d ON d.id = t."driverId"
+      JOIN "DriverVehicleAssignment" a ON a."driverId" = d.id AND a."busId" = b.id AND a."revokedAt" IS NULL
+      JOIN "DriverRouteApproval" r ON r."driverId" = d.id AND r."routeId" = t."routeId" AND r.status = 'APPROVED'
+      WHERE t.id = ${tripId}
+        AND t.status IN ('BOARDING','SCHEDULED')
+        AND b."verificationStatus" = 'APPROVED'
+        AND b."registrationExpiry" > NOW() AND b."insuranceExpiry" > NOW() AND b."inspectionExpiry" > NOW()
+        AND d."verificationStatus" = 'APPROVED' AND d."phoneVerifiedAt" IS NOT NULL AND d."licenceExpiry" > NOW()
+      FOR UPDATE OF t
     `;
-
     if (locked.length === 0) {
-      return { ok: false, reason: "trip-not-found" };
+      const exists = await tx.trip.findUnique({ where: { id: tripId }, select: { id: true } });
+      return exists ? { ok: false, reason: "trip-not-boarding" } : { ok: false, reason: "trip-not-found" };
     }
 
-    const trip = locked[0];
-
-    if (trip.status !== "BOARDING" && trip.status !== "SCHEDULED") {
-      return { ok: false, reason: "trip-not-boarding" };
-    }
-
-    // 2. Read capacity from the bus (not locked; capacity doesn't change).
-    const bus = await tx.trip.findUnique({
-      where: { id: tripId },
-      select: { bus: { select: { capacity: true } } },
-    });
-
-    if (!bus) return { ok: false, reason: "trip-not-found" };
-
-    // 3. Check seat availability — now safe, we hold the lock.
-    if (trip.seatsTaken >= bus.bus.capacity) {
-      return { ok: false, reason: "no-seats" };
-    }
-
-    // 4. Prevent duplicate queue entries.
     const existing = await tx.queueEntry.findUnique({
       where: { tripId_commuterId: { tripId, commuterId } },
     });
-    if (existing) return { ok: false, reason: "already-queued" };
+    if (existing && !["CANCELLED", "EXPIRED"].includes(existing.status)) return { ok: false, reason: "already-queued" };
 
-    // 5. Compute next position.
     const last = await tx.queueEntry.findFirst({
       where: { tripId },
       orderBy: { position: "desc" },
       select: { position: true },
     });
     const position = (last?.position ?? 0) + 1;
-
-    // 6. Increment seats and create the entry. Both inside the lock.
-    await tx.trip.update({
-      where: { id: tripId },
-      data: { seatsTaken: { increment: 1 } },
-    });
-
-    const entry = await tx.queueEntry.create({
-      data: { tripId, commuterId, position, status: "WAITING" },
-    });
-
+    const entry = existing
+      ? await tx.queueEntry.update({
+          where: { id: existing.id },
+          data: { position, status: "WAITING", joinedAt: new Date(), resolvedAt: null },
+        })
+      : await tx.queueEntry.create({
+          data: { tripId, commuterId, position, status: "WAITING" },
+        });
     return { ok: true, entryId: entry.id, position };
   });
 }
