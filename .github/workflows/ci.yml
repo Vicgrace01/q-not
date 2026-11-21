@@ -1,0 +1,87 @@
+name: Q-not CI
+
+"on":
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - "work/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qnot-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Test, lint, typecheck and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: qnot_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qnot_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Disposable PostgreSQL service for this workflow run only.
+      # Never point the destructive test helpers at a shared or production DB.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/qnot_test?schema=public&sslmode=disable
+      QNOT_TEST_DATABASE_HOST: localhost
+      QNOT_TEST_DATABASE_NAME: qnot_test
+      AUTH_SECRET: ci-only-secret-do-not-use-outside-github-actions-123456789
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12.3.4
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm exec prisma generate
+
+      - name: Create isolated test schema
+        run: pnpm exec prisma migrate deploy
+
+      - name: Run automated tests
+        run: pnpm test
+        env:
+          NODE_ENV: test
+
+      - name: Run ESLint
+        run: pnpm lint
+
+      - name: Type-check TypeScript
+        run: pnpm exec tsc --noEmit
+
+      - name: Build production application
+        run: pnpm build
