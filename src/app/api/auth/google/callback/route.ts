@@ -8,9 +8,13 @@ import { setCommuterCookie, setSessionCookie, setDriverCookie } from "@/lib/sess
 export const runtime = "nodejs";
 const googleJwks = createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs"));
 
-function failure(request: NextRequest, role: string, reason: string) {
+function appUrl(path: string): URL {
+  return new URL(path, env.NEXT_PUBLIC_APP_URL);
+}
+
+function failure(_request: NextRequest, role: string, reason: string) {
   const path = role === "operator" ? "/login" : role === "driver" ? "/driver/login" : "/c/login";
-  return NextResponse.redirect(new URL(`${path}?error=${encodeURIComponent(reason)}`, request.url));
+  return NextResponse.redirect(appUrl(`${path}?error=${encodeURIComponent(reason)}`));
 }
 
 export async function GET(request: NextRequest) {
@@ -31,6 +35,17 @@ export async function GET(request: NextRequest) {
   };
 
   if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !expectedState || !expectedNonce || !codeVerifier || !state || state !== expectedState || !code) {
+    console.error("Q-not Google OAuth callback rejected before token exchange:", {
+      hasClientId: Boolean(env.GOOGLE_CLIENT_ID),
+      hasClientSecret: Boolean(env.GOOGLE_CLIENT_SECRET),
+      hasExpectedStateCookie: Boolean(expectedState),
+      hasExpectedNonceCookie: Boolean(expectedNonce),
+      hasCodeVerifierCookie: Boolean(codeVerifier),
+      hasReturnedState: Boolean(state),
+      stateMatches: Boolean(state && expectedState && state === expectedState),
+      hasAuthorizationCode: Boolean(code),
+      providerError: request.nextUrl.searchParams.get("error"),
+    });
     clearOAuthCookies();
     return failure(request, role, "google-verification-failed");
   }
@@ -91,7 +106,7 @@ export async function GET(request: NextRequest) {
       });
       await setDriverCookie(driver.id);
       clearOAuthCookies();
-      return NextResponse.redirect(new URL(!driver.licenceExpiry || driver.name === "Driver profile pending" ? "/driver/onboarding" : "/driver/dashboard", request.url));
+      return NextResponse.redirect(appUrl(!driver.licenceExpiry || driver.name === "Driver profile pending" ? "/driver/onboarding" : "/driver/dashboard"));
     }
 
     if (role === "operator") {
@@ -116,7 +131,7 @@ export async function GET(request: NextRequest) {
       });
       await setSessionCookie(operator.id);
       clearOAuthCookies();
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return NextResponse.redirect(appUrl("/dashboard"));
     }
 
     const existingIdentity = await prisma.authIdentity.findUnique({
@@ -141,7 +156,7 @@ export async function GET(request: NextRequest) {
     });
     await setCommuterCookie(commuter.id);
     clearOAuthCookies();
-    return NextResponse.redirect(new URL("/c/dashboard", request.url));
+    return NextResponse.redirect(appUrl("/c/dashboard"));
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown error";
     console.error(`Q-not Google sign-in failed during ${stage}:`, message);
