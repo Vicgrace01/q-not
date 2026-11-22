@@ -84,6 +84,15 @@ enum MessageDirection {
 }
 
 // ---------- Accounts ----------
+enum SegmentAllocationStatus {
+  MATCHED
+  HELD
+  CONFIRMED
+  BOARDED
+  ALIGHTED
+  RELEASED
+  CANCELLED
+}
 model Operator {
   id                 String             @id @default(cuid())
   name               String
@@ -148,6 +157,7 @@ model Commuter {
   identities      AuthIdentity[]
   payments        Payment[]
   journeyRequests JourneyRequest[]
+  segmentAllocations SegmentAllocation[]
 }
 
 model AuthIdentity {
@@ -214,6 +224,8 @@ model Stop {
   sequence                 Int
   journeyBoardingRequests  JourneyRequest[] @relation("JourneyBoardingStop")
   journeyAlightingRequests JourneyRequest[] @relation("JourneyAlightingStop")
+  segmentBoardings         SegmentAllocation[] @relation("SegmentBoardingStop")
+  segmentAlightings        SegmentAllocation[] @relation("SegmentAlightingStop")
 
   @@unique([routeId, sequence])
   @@index([routeId])
@@ -317,6 +329,7 @@ model Trip {
   tickets                Ticket[]
   payments               Payment[]
   matchedJourneyRequests JourneyRequest[]
+  segmentAllocations      SegmentAllocation[]
 
   @@index([routeId, departureTime])
   @@index([operatorId, status])
@@ -358,6 +371,7 @@ model QueueEntry {
   resolvedAt DateTime?
 
   @@unique([tripId, commuterId])
+  segmentAllocation SegmentAllocation?
   @@index([tripId, status, position])
 }
 
@@ -374,6 +388,7 @@ model Ticket {
 
   @@index([tripId])
   @@index([commuterId])
+  segmentAllocation SegmentAllocation?
 }
 
 model Payment {
@@ -399,6 +414,7 @@ model Payment {
   @@index([commuterId, createdAt])
   @@index([tripId, status])
   @@index([status, expiresAt])
+  segmentAllocation SegmentAllocation?
 }
 
 model JourneyRequest {
@@ -421,6 +437,7 @@ model JourneyRequest {
 
   @@index([routeId, status, desiredDepartureAt])
   @@index([matchedTripId])
+  segmentAllocation SegmentAllocation?
   @@index([commuterId, createdAt])
 }
 
@@ -446,4 +463,49 @@ model Message {
   createdAt  DateTime         @default(now())
 
   @@index([commuterId, createdAt])
+}
+
+// ---------- Stop-to-stop seat allocation ledger ----------
+model SegmentAllocation {
+  id String @id @default(cuid())
+
+  tripId String
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Restrict)
+
+  commuterId String
+  commuter   Commuter @relation(fields: [commuterId], references: [id], onDelete: Restrict)
+
+  journeyRequestId String?         @unique
+  journeyRequest   JourneyRequest? @relation(fields: [journeyRequestId], references: [id], onDelete: SetNull)
+
+  paymentId String?  @unique
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  queueEntryId String?     @unique
+  queueEntry   QueueEntry? @relation(fields: [queueEntryId], references: [id], onDelete: SetNull)
+
+  ticketId String?  @unique
+  ticket   Ticket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  boardingStopId String
+  boardingStop   Stop @relation("SegmentBoardingStop", fields: [boardingStopId], references: [id], onDelete: Restrict)
+
+  alightingStopId String
+  alightingStop   Stop @relation("SegmentAlightingStop", fields: [alightingStopId], references: [id], onDelete: Restrict)
+
+  // Immutable sequence snapshots protect the original booking interval
+  // from later edits to route-stop ordering.
+  boardingSequence  Int
+  alightingSequence Int
+
+  passengerCount Int                   @default(1)
+  status          SegmentAllocationStatus @default(MATCHED)
+  holdExpiresAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tripId, status, boardingSequence])
+  @@index([commuterId, status])
+  @@index([holdExpiresAt])
 }

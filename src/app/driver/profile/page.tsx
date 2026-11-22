@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getDriverId } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { QNotBrand } from "@/components/qnot-brand";
+import { QNotWorkspaceDock } from "@/components/qnot-workspace-navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -26,13 +27,19 @@ export default async function DriverProfilePage() {
   });
   if (!driver) redirect("/driver/login");
 
-  return <main className="min-h-screen bg-[#07130f] px-4 py-8 text-white sm:px-6">
+  return <main className="qnot-driver-workspace qnot-workspace-page min-h-screen bg-[#07130f] px-4 py-8 text-white sm:px-6">
     <div className="mx-auto max-w-6xl">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
         <QNotBrand />
         <nav className="flex flex-wrap items-center gap-4 text-sm"><Link href="/driver/dashboard" className="text-neutral-300 hover:text-lime-200">Driver workspace</Link><Link href="/driver/onboarding" className="text-lime-200 underline underline-offset-4">Edit driver & vehicle details</Link></nav>
       </header>
       <div className="mb-7 max-w-3xl"><p className="text-xs font-extrabold tracking-[.18em] text-lime-300">Q-NOT DRIVE / ACCOUNT & VERIFICATION</p><h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Your driver profile.</h1><p className="mt-3 text-sm leading-relaxed text-neutral-400">Keep your contact details, driving credentials, vehicle records and route permissions current. You can explore your workspace while checks are pending; service publishing stays locked until the required checks pass.</p></div>
+      <section className="mb-6 grid gap-3 rounded-2xl border border-white/10 bg-[#0d1d15] p-4 sm:grid-cols-[minmax(0,1.1fr)_repeat(3,minmax(0,.7fr))] sm:items-center sm:p-5" aria-label="Driver account summary">
+        <div className="flex min-w-0 items-center gap-3"><span className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-lime-300/25 bg-lime-300/10 text-xl font-black text-lime-200">{driver.name.trim().slice(0, 1).toUpperCase()}</span><div className="min-w-0"><span className="text-[10px] font-bold tracking-[.16em] text-lime-300">DRIVER ACCOUNT</span><strong className="mt-1 block truncate text-lg">{driver.name}</strong><p className="mt-1 truncate text-xs text-neutral-400">{driver.email ?? driver.phone ?? "No contact method linked"}</p></div></div>
+        <div className="rounded-xl border border-white/10 bg-[#09150f] p-3"><span className="block text-[10px] tracking-wider text-neutral-500">ACCOUNT REVIEW</span><strong className="mt-1 block text-sm text-white">{label(driver.verificationStatus)}</strong></div>
+        <div className="rounded-xl border border-white/10 bg-[#09150f] p-3"><span className="block text-[10px] tracking-wider text-neutral-500">ASSIGNED VEHICLES</span><strong className="mt-1 block text-sm text-white">{driver.vehicleAssignments.length}</strong></div>
+        <div className="rounded-xl border border-white/10 bg-[#09150f] p-3"><span className="block text-[10px] tracking-wider text-neutral-500">APPROVED ROUTES</span><strong className="mt-1 block text-sm text-white">{driver.routeApprovals.filter((item) => item.status === "APPROVED").length}</strong></div>
+      </section>
       <section className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
         <article className="rounded-2xl border border-white/10 bg-[#0d1d15] p-5 sm:p-7">
           <p className="text-xs font-bold tracking-[.16em] text-lime-300">PERSONAL DETAILS</p>
@@ -61,5 +68,6 @@ export default async function DriverProfilePage() {
       </section>
       <p className="mt-7 text-xs leading-relaxed text-neutral-500">Q-not verifies driver identity, driving credentials, vehicles, operating authority and route access separately. A completed form is not an approval to carry passengers.</p>
     </div>
+    <QNotWorkspaceDock role="driver" />
   </main>;
 }

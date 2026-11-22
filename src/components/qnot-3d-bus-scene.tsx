@@ -24,20 +24,23 @@ function getServerReducedMotionSnapshot() {
 const routeCurve = new THREE.CatmullRomCurve3(
   [
     new THREE.Vector3(-8.8, 0.035, 8.6),
-    new THREE.Vector3(-6.4, 0.035, 5.6),
-    new THREE.Vector3(-2.1, 0.035, 4.0),
-    new THREE.Vector3(3.0, 0.035, 2.0),
-    new THREE.Vector3(7.0, 0.035, -1.0),
-    new THREE.Vector3(5.8, 0.035, -4.2),
-    new THREE.Vector3(1.2, 0.035, -6.4),
-    new THREE.Vector3(-3.4, 0.035, -8.8),
-    new THREE.Vector3(-1.0, 0.035, -11.1),
-    new THREE.Vector3(5.4, 0.035, -12.4),
+    new THREE.Vector3(-7.1, 0.035, 6.0),
+    new THREE.Vector3(-4.2, 0.035, 4.6),
+    new THREE.Vector3(0.0, 0.035, 3.0),
+    new THREE.Vector3(4.5, 0.035, 1.1),
+    new THREE.Vector3(8.0, 0.035, -2.1),
+    new THREE.Vector3(8.6, 0.035, -5.7),
+    new THREE.Vector3(6.9, 0.035, -8.8),
+    new THREE.Vector3(3.3, 0.035, -10.8),
+    new THREE.Vector3(0.0, 0.035, -11.7),
+    new THREE.Vector3(2.5, 0.035, -12.8),
+    new THREE.Vector3(6.6, 0.035, -13.0),
     new THREE.Vector3(10.8, 0.035, -11.2),
   ],
   false,
   "centripetal",
 );
+const ROUTE_LENGTH = routeCurve.getLength();
 
 function buildRoadRibbon(width: number, height: number, samples = 280) {
   const vertices: number[] = [];
@@ -296,6 +299,82 @@ function City() {
   );
 }
 
+/**
+ * The coach GLB stores wheel vertices in the vehicle root rather than at each
+ * wheel's origin. Build a real pivot at each wheel centre before animating it.
+ * The tyre torus is also authored with its thin axis along Z; the coach axles
+ * run across X, so its geometry is re-oriented to match the separate rim mesh.
+ */
+function createWheelPivots(vehicle: THREE.Group): THREE.Group[] {
+  const tyres = new Map<string, THREE.Mesh>();
+  const beads = new Map<string, THREE.Mesh>();
+
+  vehicle.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const tyreMatch = object.name.match(/^Tyre_(?!bead_)(.+)$/);
+    const beadMatch = object.name.match(/^Tyre_bead_(.+)$/);
+    if (tyreMatch?.[1]) tyres.set(tyreMatch[1], object);
+    if (beadMatch?.[1]) beads.set(beadMatch[1], object);
+  });
+
+  vehicle.updateMatrixWorld(true);
+  const pivots: THREE.Group[] = [];
+  const axleAxis = new THREE.Vector3(1, 0, 0);
+  const axisDirections = [
+    new THREE.Vector3(1, 0, 0),
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(0, 0, 1),
+  ];
+
+  for (const [suffix, tyre] of tyres) {
+    const bead = beads.get(suffix);
+    const bounds = new THREE.Box3().setFromObject(tyre);
+    if (bead) bounds.union(new THREE.Box3().setFromObject(bead));
+
+    const worldCentre = bounds.getCenter(new THREE.Vector3());
+    const localCentre = vehicle.worldToLocal(worldCentre.clone());
+    const pivot = new THREE.Group();
+    pivot.name = `WheelPivot_${suffix}`;
+    pivot.position.copy(localCentre);
+    vehicle.add(pivot);
+
+    for (const part of [tyre, bead]) {
+      if (!part) continue;
+      const geometry = part.geometry.clone();
+      const relativeMatrix = new THREE.Matrix4()
+        .copy(vehicle.matrixWorld)
+        .invert()
+        .multiply(part.matrixWorld);
+      geometry.applyMatrix4(relativeMatrix);
+      geometry.computeBoundingBox();
+      const size = geometry.boundingBox?.getSize(new THREE.Vector3()) ?? new THREE.Vector3(1, 1, 1);
+      geometry.translate(-localCentre.x, -localCentre.y, -localCentre.z);
+
+      if (part === tyre) {
+        let thinAxisIndex = 0;
+        if (size.y < size.x) thinAxisIndex = 1;
+        if ((thinAxisIndex === 0 ? size.x : size.y) > size.z) thinAxisIndex = 2;
+        const alignment = new THREE.Quaternion().setFromUnitVectors(axisDirections[thinAxisIndex]!, axleAxis);
+        geometry.applyQuaternion(alignment);
+      }
+
+      part.geometry = geometry;
+      part.position.set(0, 0, 0);
+      part.quaternion.identity();
+      part.scale.set(1, 1, 1);
+      pivot.add(part);
+    }
+
+    pivots.push(pivot);
+  }
+
+  vehicle.updateMatrixWorld(true);
+  if (pivots.length !== 6) {
+    console.warn(`Q-not coach expected six wheel pivots but prepared ${pivots.length}.`);
+  }
+  return pivots;
+}
+
 function Coach({ motionSpeed, once }: { motionSpeed: number; once: boolean }) {
   const coach = useRef<THREE.Group>(null);
   const reducedMotion = useSyncExternalStore(
@@ -315,26 +394,24 @@ function Coach({ motionSpeed, once }: { motionSpeed: number; once: boolean }) {
     return cloned;
   }, [scene]);
   const elapsedSeconds = useRef(0);
-  const wheels = useMemo(() => {
-    const found: THREE.Object3D[] = [];
-    vehicle.traverse((object) => {
-      if (object.name.startsWith("Tyre_")) found.push(object);
-    });
-    return found;
-  }, [vehicle]);
+  const wheels = useMemo(() => createWheelPivots(vehicle), [vehicle]);
 
   useFrame((_, delta) => {
     if (!coach.current) return;
     elapsedSeconds.current += delta;
-    const elapsed = elapsedSeconds.current * 0.027 * Math.min(motionSpeed, 12) + 0.035;
+    const speedFactor = Math.max(0, Math.min(motionSpeed, 12));
+    const progressRate = 0.027 * speedFactor;
+    const elapsed = elapsedSeconds.current * progressRate + 0.035;
     const progress = reducedMotion ? 0.46 : once ? Math.min(elapsed, 0.985) : elapsed % 1;
     const point = routeCurve.getPointAt(progress);
     const tangent = routeCurve.getTangentAt(progress).normalize();
     coach.current.position.set(point.x, 0.02 + (reducedMotion ? 0 : Math.sin(elapsedSeconds.current * 2.1) * 0.012), point.z);
     coach.current.rotation.y = Math.atan2(tangent.x, tangent.z);
 
-    if (!reducedMotion) {
-      const spin = delta * 3.2 * Math.min(motionSpeed, 2.0);
+    const stillMoving = !once || elapsed < 0.985;
+    if (!reducedMotion && stillMoving && speedFactor > 0) {
+      const wheelRadius = 0.49;
+      const spin = delta * (ROUTE_LENGTH * progressRate) / wheelRadius;
       wheels.forEach((wheel) => { wheel.rotation.x -= spin; });
     }
   });

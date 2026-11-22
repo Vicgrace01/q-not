@@ -6,6 +6,7 @@ import { driverLogoutAction } from "@/lib/actions/driver-auth";
 import { publishDriverTripFormAction, openTripBoardingAction, callNextPassengerAction, acceptCashFareAction, startDriverTripAction, markPassengerBoardedAction, completeDriverTripAction } from "@/lib/actions/driver-operations";
 import { DriverLocationReporter } from "@/components/driver-location-reporter";
 import { DriverLiveRouteMap } from "@/components/maps/driver-live-route-map";
+import { QNotWorkspaceDock } from "@/components/qnot-workspace-navigation";
 
 export const dynamic = "force-dynamic";
 const naira = new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 });
@@ -54,6 +55,15 @@ export default async function DriverDashboardPage({ searchParams }: { searchPara
   const approvedVehicles = driver.vehicleAssignments.filter((assignment) => assignment.bus.verificationStatus === "APPROVED" && !!assignment.bus.registrationExpiry && assignment.bus.registrationExpiry > now && !!assignment.bus.insuranceExpiry && assignment.bus.insuranceExpiry > now && !!assignment.bus.inspectionExpiry && assignment.bus.inspectionExpiry > now);
   const approvedRoutes = driver.routeApprovals.filter((approval) => approval.status === "APPROVED");
   const activeTrip = tripsWithTickets.find((trip) => trip.status === "BOARDING" || trip.status === "IN_TRANSIT");
+  const waitingPassengerCount = activeTrip?.queueEntries.filter((entry) => entry.status === "WAITING").length ?? 0;
+  const calledPassengerCount = activeTrip?.queueEntries.filter((entry) => entry.status === "CALLED").length ?? 0;
+  const confirmedPassengerCount = activeTrip?.queueEntries.filter((entry) => entry.status === "CONFIRMED").length ?? 0;
+  const upcomingTripCount = driver.trips.filter((trip) => trip.status === "SCHEDULED").length;
+  const vehiclesNeedingReviewCount = driver.vehicleAssignments.filter(({ bus }) =>
+    bus.verificationStatus !== "APPROVED" || !bus.registrationExpiry || bus.registrationExpiry <= now ||
+    !bus.insuranceExpiry || bus.insuranceExpiry <= now || !bus.inspectionExpiry || bus.inspectionExpiry <= now
+  ).length;
+  const pendingRouteReviewCount = driver.routeApprovals.filter((approval) => approval.status !== "APPROVED").length;
   const hasPublishAccess = !!driver.phoneVerifiedAt && driver.verificationStatus === "APPROVED" && approvedVehicles.length > 0 && approvedRoutes.length > 0 && !!driver.licenceExpiry && driver.licenceExpiry > now;
   const driverErrorMessages: Record<string, string> = {
     "publish-failed": "The departure could not be published.",
@@ -82,7 +92,7 @@ export default async function DriverDashboardPage({ searchParams }: { searchPara
     ? params.detail
     : params.error ? driverErrorMessages[params.error] ?? "The requested trip action could not be completed." : null;
 
-  return <main className="min-h-screen bg-[#071311] px-4 py-7 text-white sm:px-6">
+  return <main className="qnot-driver-workspace qnot-workspace-page min-h-screen bg-[#071311] px-4 py-7 text-white sm:px-6">
     <div className="mx-auto max-w-6xl">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-neutral-800 pb-5"><div><Link href="/" className="text-xl font-black">Q-not</Link><p className="mt-1 text-xs tracking-wider text-lime-300">DRIVER OPERATIONS</p></div><div className="flex items-center gap-4"><Link href="/driver/profile" className="text-xs font-semibold text-lime-200 underline underline-offset-4">Profile &amp; verification</Link><span className="text-right text-sm"><strong>{driver.name}</strong><small className="block text-xs text-neutral-400">{driver.phone ?? driver.email ?? "Contact not supplied"}</small></span>{!driver.emailVerifiedAt && <Link href="/driver/onboarding/email" className="text-xs text-lime-300 underline">Verify email</Link>}<form action={driverLogoutAction}><button className="text-sm text-neutral-400 underline" type="submit">Sign out</button></form></div></header>
 
@@ -96,18 +106,15 @@ export default async function DriverDashboardPage({ searchParams }: { searchPara
       {params.published === "1" && <p className="mb-5 rounded-lg bg-emerald-950/70 px-4 py-3 text-sm text-emerald-200">Your service departure has been published.</p>}
       {params.trip && <p className="mb-5 rounded-lg bg-emerald-950/70 px-4 py-3 text-sm text-emerald-200">Trip status updated: {stateLabel(params.trip)}.</p>}
 
-      <section className="mb-7 rounded-2xl border border-neutral-800 bg-[#0d1916] p-5 sm:p-6">
-        <div className="mb-4"><p className="text-xs font-bold tracking-[.16em] text-lime-300">REGISTERED VEHICLES</p><h2 className="mt-1 text-xl font-bold">Your vehicle garage</h2></div>
-        <div className="grid gap-3 md:grid-cols-2">{driver.vehicleAssignments.map(({ bus }) => <article key={bus.id} className="rounded-xl border border-neutral-800 bg-[#09110f] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><strong>{bus.plateNumber}</strong><span className={`rounded-full px-2.5 py-1 text-[11px] ${bus.verificationStatus === "APPROVED" ? "bg-emerald-950 text-emerald-200" : "bg-amber-950 text-amber-200"}`}>{stateLabel(bus.verificationStatus)}</span></div><p className="mt-2 text-sm text-neutral-300">{stateLabel(bus.vehicleType)} · {bus.make ?? "Make not entered"} {bus.model ?? ""}</p><p className="mt-1 text-xs text-neutral-500">Passenger capacity: {bus.capacity}</p></article>)}</div>
+      <section className="mb-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Driver service snapshot">
+        <article className="rounded-xl border border-neutral-800 bg-[#0d1916] p-4"><span className="text-[11px] font-bold tracking-wider text-neutral-400">ACTIVE SERVICE</span><strong className="mt-2 block text-2xl">{activeTrip ? "01" : "00"}</strong><p className="mt-1 text-xs text-neutral-400">{activeTrip ? `${activeTrip.route.origin} to ${activeTrip.route.destination}` : "No trip currently in progress"}</p></article>
+        <article className="rounded-xl border border-neutral-800 bg-[#0d1916] p-4"><span className="text-[11px] font-bold tracking-wider text-neutral-400">WAITING TO BOARD</span><strong className="mt-2 block text-2xl">{waitingPassengerCount}</strong><p className="mt-1 text-xs text-neutral-400">Passengers waiting in the active queue</p></article>
+        <article className="rounded-xl border border-neutral-800 bg-[#0d1916] p-4"><span className="text-[11px] font-bold tracking-wider text-neutral-400">READY TO BOARD</span><strong className="mt-2 block text-2xl">{confirmedPassengerCount}</strong><p className="mt-1 text-xs text-neutral-400">{calledPassengerCount} currently called · {upcomingTripCount} upcoming departures</p></article>
+        <article className="rounded-xl border border-neutral-800 bg-[#0d1916] p-4"><span className="text-[11px] font-bold tracking-wider text-neutral-400">SETUP NEEDS ATTENTION</span><strong className="mt-2 block text-2xl">{vehiclesNeedingReviewCount + pendingRouteReviewCount}</strong><p className="mt-1 text-xs text-neutral-400">{vehiclesNeedingReviewCount} vehicle(s) · {pendingRouteReviewCount} route review(s)</p></article>
       </section>
 
-      <section className="mb-7 rounded-2xl border border-neutral-800 bg-[#0d1916] p-5 sm:p-6">
-        <p className="text-xs font-bold tracking-[.16em] text-lime-300">ROUTE ACCESS</p><h2 className="mt-1 text-xl font-bold">Approved corridors</h2>
-        <div className="mt-4 grid gap-2 md:grid-cols-2">{driver.routeApprovals.map((approval) => <div key={approval.id} className="flex items-center justify-between gap-3 rounded-lg border border-neutral-800 p-3"><span className="text-sm">{approval.route.origin} <span className="text-lime-300">→</span> {approval.route.destination}</span><span className="text-xs text-neutral-400">{stateLabel(approval.status)}</span></div>)}</div>
-      </section>
-
-      {activeTrip ? <section className="mb-7 space-y-5 rounded-2xl border border-lime-300/30 bg-lime-300/5 p-5 sm:p-6">
-        <div><p className="text-xs font-bold tracking-[.16em] text-lime-300">{activeTrip.status === "BOARDING" ? "BOARDING IN PROGRESS" : "ACTIVE SERVICE"}</p><h2 className="mt-1 text-xl font-bold">{activeTrip.route.origin} → {activeTrip.route.destination}</h2><p className="mt-1 text-xs text-neutral-400">Vehicle {activeTrip.bus.plateNumber} · {activeTrip.departureTime.toLocaleTimeString("en-NG", { timeZone: "Africa/Lagos", hour: "2-digit", minute: "2-digit" })} · {activeTrip.bus.capacity - activeTrip.seatsTaken - activeTrip.seatsReserved} unallocated seats</p></div>
+      {activeTrip ? <section id="active-trip-controls" aria-label="Active trip controls" className="mb-7 space-y-5 rounded-2xl border border-lime-300/30 bg-lime-300/5 p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold tracking-[.16em] text-lime-300">{activeTrip.status === "BOARDING" ? "BOARDING IN PROGRESS" : "ACTIVE SERVICE"}</p><h2 className="mt-1 text-xl font-bold">{activeTrip.route.origin} → {activeTrip.route.destination}</h2></div><span className="rounded-full border border-lime-300/30 px-3 py-1 text-xs text-lime-200">{activeTrip.queueEntries.length} active queue record(s)</span></div><div className="mt-1"><p className="mt-1 text-xs text-neutral-400">Vehicle {activeTrip.bus.plateNumber} · {activeTrip.departureTime.toLocaleTimeString("en-NG", { timeZone: "Africa/Lagos", hour: "2-digit", minute: "2-digit" })} · {activeTrip.bus.capacity - activeTrip.seatsTaken - activeTrip.seatsReserved} unallocated seats</p></div>
         <DriverLiveRouteMap
           tripId={activeTrip.id}
           routeId={activeTrip.route.id}
@@ -121,10 +128,23 @@ export default async function DriverDashboardPage({ searchParams }: { searchPara
           <div className="rounded-lg border border-neutral-800 bg-[#09110f] p-4"><h3 className="font-semibold">Confirm a boarding pass</h3><p className="mt-1 text-xs text-neutral-400">Enter the passenger&apos;s ticket code to record boarding.</p><form action={markPassengerBoardedAction} className="mt-3 flex flex-wrap gap-2"><input type="hidden" name="tripId" value={activeTrip.id}/><input name="ticketCode" required placeholder="QN-XXXXXXXXXX" autoCapitalize="characters" className="min-w-0 flex-1 rounded-lg border border-neutral-700 bg-[#071311] px-3 py-2 text-sm font-mono"/><button type="submit" className="rounded-lg bg-lime-300 px-4 py-2 text-sm font-bold text-neutral-950">Confirm boarding</button></form></div>
           <form action={completeDriverTripAction}><input type="hidden" name="tripId" value={activeTrip.id}/><button type="submit" className="rounded-lg border border-neutral-700 px-4 py-2.5 text-sm font-semibold text-white">Complete trip</button></form></>}</section> : null}
 
+      <section className="mb-7 rounded-2xl border border-neutral-800 bg-[#0d1916] p-5 sm:p-6">
+        <div className="mb-4"><p className="text-xs font-bold tracking-[.16em] text-lime-300">REGISTERED VEHICLES</p><h2 className="mt-1 text-xl font-bold">Your vehicle garage</h2></div>
+        <div className="grid gap-3 md:grid-cols-2">{driver.vehicleAssignments.map(({ bus }) => <article key={bus.id} className="rounded-xl border border-neutral-800 bg-[#09110f] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><strong>{bus.plateNumber}</strong><span className={`rounded-full px-2.5 py-1 text-[11px] ${bus.verificationStatus === "APPROVED" ? "bg-emerald-950 text-emerald-200" : "bg-amber-950 text-amber-200"}`}>{stateLabel(bus.verificationStatus)}</span></div><p className="mt-2 text-sm text-neutral-300">{stateLabel(bus.vehicleType)} · {bus.make ?? "Make not entered"} {bus.model ?? ""}</p><p className="mt-1 text-xs text-neutral-500">Passenger capacity: {bus.capacity}</p></article>)}</div>
+      </section>
+
+      <section className="mb-7 rounded-2xl border border-neutral-800 bg-[#0d1916] p-5 sm:p-6">
+        <p className="text-xs font-bold tracking-[.16em] text-lime-300">ROUTE ACCESS</p><h2 className="mt-1 text-xl font-bold">Approved corridors</h2>
+        <div className="mt-4 grid gap-2 md:grid-cols-2">{driver.routeApprovals.map((approval) => <div key={approval.id} className="flex items-center justify-between gap-3 rounded-lg border border-neutral-800 p-3"><span className="text-sm">{approval.route.origin} <span className="text-lime-300">→</span> {approval.route.destination}</span><span className="text-xs text-neutral-400">{stateLabel(approval.status)}</span></div>)}</div>
+      </section>
+
+
+
       {hasPublishAccess && <section className="mb-7 rounded-2xl border border-neutral-800 bg-[#0d1916] p-5 sm:p-6"><p className="text-xs font-bold tracking-[.16em] text-lime-300">PUBLISH A SERVICE</p><h2 className="mt-1 text-xl font-bold">Schedule your next departure</h2><form action={publishDriverTripFormAction} className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><label className="text-sm">Approved route<select name="routeId" required className={inputClass}>{approvedRoutes.map((item) => <option key={item.routeId} value={item.routeId}>{item.route.origin} → {item.route.destination}</option>)}</select></label><label className="text-sm">Approved vehicle<select name="busId" required className={inputClass}>{approvedVehicles.map((item) => <option key={item.busId} value={item.busId}>{item.bus.plateNumber} · {item.bus.capacity} seats</option>)}</select></label><label className="text-sm">Departure time<input name="departureTime" type="datetime-local" required className={inputClass}/></label><label className="text-sm">Fare per passenger (₦)<input name="fareNaira" type="number" min="1" step="50" defaultValue="1500" required className={inputClass}/></label><div className="sm:col-span-2 lg:col-span-4"><button type="submit" className="rounded-lg bg-lime-300 px-5 py-3 text-sm font-bold text-neutral-950">Publish departure</button></div></form></section>}
 
       <section className="rounded-2xl border border-neutral-800 bg-[#0d1916] p-5 sm:p-6"><p className="text-xs font-bold tracking-[.16em] text-lime-300">UPCOMING SERVICE</p><h2 className="mt-1 text-xl font-bold">Your departures</h2><div className="mt-4 space-y-3">{driver.trips.length === 0 ? <p className="rounded-lg border border-dashed border-neutral-700 p-5 text-sm text-neutral-400">No service departures are assigned to you yet.</p> : driver.trips.map((trip) => <article key={trip.id} className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-neutral-800 p-4"><div><strong>{trip.route.origin} → {trip.route.destination}</strong><p className="mt-1 text-xs text-neutral-400">{trip.bus.plateNumber} · {trip.departureTime.toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" })} · {naira.format(trip.fareKobo / 100)}</p></div>{trip.status === "IN_TRANSIT" ? <span className="rounded-full bg-emerald-950 px-3 py-1 text-xs text-emerald-200">In transit</span> : trip.status === "BOARDING" ? <span className="rounded-full bg-amber-950 px-3 py-1 text-xs text-amber-100">Boarding</span> : <form action={openTripBoardingAction}><input type="hidden" name="tripId" value={trip.id}/><button className="rounded-lg border border-neutral-700 px-3 py-2 text-xs font-semibold" type="submit">Open boarding</button></form>}</article>)}</div></section>
       <p className="mt-6 text-xs text-neutral-500">Q-not activates driver services only after the driver, vehicle and route requirements have been reviewed and approved.</p>
     </div>
+    <QNotWorkspaceDock role="driver" />
   </main>;
 }

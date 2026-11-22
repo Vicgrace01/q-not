@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCommuterId } from "@/lib/session";
 import { commuterLogoutAction } from "@/lib/actions/commuter-auth";
+import { QNotWorkspaceDock } from "@/components/qnot-workspace-navigation";
 
 export const dynamic = "force-dynamic";
 const money = new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 2 });
@@ -16,7 +17,7 @@ export default async function QFundsPage({ searchParams }: { searchParams: Promi
     searchParams,
   ]);
   return <div className="qnot-basic-page"><header className="border-b border-neutral-800"><div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4"><Link href="/" className="text-lg font-bold">Q-not</Link><nav className="flex items-center gap-4 text-sm"><Link href="/c/dashboard">Passenger dashboard</Link><form action={commuterLogoutAction}><button type="submit" className="text-neutral-400 underline">Sign out</button></form></nav></div></header>
-    <main className="mx-auto max-w-5xl px-5 py-8">
+    <main className="qnot-workspace-page mx-auto max-w-5xl px-5 py-8">
       <p className="text-xs font-bold tracking-[.18em] text-lime-300">Q-FUNDS / TRANSPORT PAYMENTS</p><h1 className="mt-2 text-3xl font-black">Your journey finances.</h1><p className="mt-2 max-w-2xl text-sm text-neutral-400">Your transport payment history and booking confirmations in one place.</p>
       {params.payment === "success" && <p className="mt-5 rounded-lg bg-emerald-950 px-4 py-3 text-sm text-emerald-200">Your payment has been confirmed and the ticket is available in your account.</p>}
       {params.payment === "failed" && <p className="mt-5 rounded-lg bg-amber-950 px-4 py-3 text-sm text-amber-100">The payment provider marked that attempt as unsuccessful. Its seat hold has been released.</p>}
@@ -28,5 +29,6 @@ export default async function QFundsPage({ searchParams }: { searchParams: Promi
       </section>
       <p className="mt-6 rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 text-xs leading-relaxed text-amber-100/80">Q-Funds is your transport payment centre. It records fare payments, cash collection entries and booking transactions. Stored-value balances, withdrawals and automated refunds require a licensed financial or payment partner and are not enabled in this account.</p>
     </main>
+    <QNotWorkspaceDock role="passenger" />
   </div>;
 }

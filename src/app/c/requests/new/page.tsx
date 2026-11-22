@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCommuterId } from "@/lib/session";
 import { createJourneyRequestAction } from "@/lib/actions/journey-requests";
+import { QNotWorkspaceDock } from "@/components/qnot-workspace-navigation";
 
 export const dynamic = "force-dynamic";
 const field = "mt-1 w-full rounded-lg border border-neutral-700 bg-[#09110f] px-3 py-2.5 text-sm text-white";
@@ -19,7 +20,7 @@ export default async function NewJourneyRequestPage({ searchParams }: { searchPa
     });
   const routesUnavailable = !routeResult.ok;
   const routes = routeResult.ok ? routeResult.value : [];
-  return <main className="min-h-screen bg-[#071311] px-4 py-8 text-white sm:px-6"><div className="mx-auto max-w-3xl">
+  return <main className="qnot-workspace-page min-h-screen bg-[#071311] px-4 py-8 text-white sm:px-6"><div className="mx-auto max-w-3xl">
     <header className="mb-8 flex items-center justify-between border-b border-neutral-800 pb-4"><Link href="/" className="text-xl font-black">Q-not</Link><Link href="/c/requests" className="text-sm text-neutral-300 underline">My journey requests</Link></header>
     <p className="text-xs font-bold tracking-[.18em] text-lime-300">PLAN YOUR JOURNEY / REQUEST A SERVICE</p><h1 className="mt-2 text-3xl font-black">Tell us where and when you need to travel.</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-400">Q-not groups compatible passenger requests and matches them with approved services that have suitable capacity. A request is not a confirmed seat or a paid booking.</p>
     {params.error && <p className="mt-5 rounded-lg bg-red-950 px-4 py-3 text-sm text-red-200">{params.error === "time" ? "Choose a departure time at least five minutes from now." : params.error === "stops" ? "Choose two stops on the selected route in the correct order." : "Check the journey details and try again."}</p>}
@@ -32,5 +33,7 @@ export default async function NewJourneyRequestPage({ searchParams }: { searchPa
       <button type="submit" disabled={routes.length === 0 || routesUnavailable} className="rounded-lg bg-lime-300 px-5 py-3 text-sm font-bold text-neutral-950 disabled:opacity-50">Submit journey request</button>
       {routes.length === 0 && <p className="text-xs text-neutral-400">No routes with registered stops are available yet.</p>}
     </form>
-  </div></main>;
+  </div>
+    <QNotWorkspaceDock role="passenger" />
+  </main>;
 }
