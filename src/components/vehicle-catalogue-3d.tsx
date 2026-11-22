@@ -36,21 +36,39 @@ const SPECS: Record<VehicleTypeChoice, VehicleSpec> = {
   OTHER: { length: 3.4, height: 1.4, width: 1.25, colour: "#c9d1cd", windows: 3, capacity: 4, accent: "#8aa15c" },
 };
 
-function Wheel({ position }: { position: [number, number, number] }) {
+function Wheel({ position, radius = 0.34 }: { position: [number, number, number]; radius?: number }) {
+  const tyreDepth = radius * 0.62;
   return (
     <group position={position}>
-      <mesh rotation={[0, 0, Math.PI / 2]} castShadow>
-        <cylinderGeometry args={[0.34, 0.34, 0.18, 28]} />
-        <meshStandardMaterial color="#111816" roughness={0.94} />
+      <mesh rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[radius, radius, tyreDepth, 48, 1]} />
+        <meshStandardMaterial color="#101613" roughness={0.92} />
       </mesh>
-      <mesh rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.17, 0.17, 0.19, 24]} />
-        <meshStandardMaterial color="#aab7b1" metalness={0.82} roughness={0.26} />
-      </mesh>
-      <mesh rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.065, 0.065, 0.2, 16]} />
-        <meshStandardMaterial color="#394741" metalness={0.42} roughness={0.38} />
-      </mesh>
+      {[-1, 1].map((side) => (
+        <group key={side}>
+          <mesh position={[0, 0, side * (tyreDepth * 0.49)]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[radius * 0.59, radius * 0.59, 0.026, 40]} />
+            <meshStandardMaterial color="#58675f" metalness={0.74} roughness={0.34} />
+          </mesh>
+          <mesh position={[0, 0, side * (tyreDepth * 0.5 + 0.014)]}>
+            <torusGeometry args={[radius * 0.56, radius * 0.055, 10, 48]} />
+            <meshStandardMaterial color="#b8c5bd" metalness={0.86} roughness={0.24} />
+          </mesh>
+          <mesh position={[0, 0, side * (tyreDepth * 0.5 + 0.018)]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[radius * 0.19, radius * 0.19, 0.035, 32]} />
+            <meshStandardMaterial color="#35443c" metalness={0.72} roughness={0.3} />
+          </mesh>
+          {Array.from({ length: 6 }, (_, index) => {
+            const angle = index * Math.PI / 3;
+            return (
+              <mesh key={index} position={[Math.cos(angle) * radius * 0.39, Math.sin(angle) * radius * 0.39, side * (tyreDepth * 0.5 + 0.038)]}>
+                <sphereGeometry args={[radius * 0.035, 10, 10]} />
+                <meshStandardMaterial color="#d6dfd9" metalness={0.88} roughness={0.23} />
+              </mesh>
+            );
+          })}
+        </group>
+      ))}
     </group>
   );
 }
@@ -60,6 +78,7 @@ function VehicleExterior({ type }: { type: VehicleTypeChoice }) {
   const wheelXs = type === "COASTER"
     ? [-spec.length * 0.36, 0, spec.length * 0.36]
     : [-spec.length * 0.33, spec.length * 0.33];
+  const wheelRadius = type === "COASTER" ? 0.41 : type === "HIACE" || type === "SHUTTLE" ? 0.37 : 0.34;
   const windowStart = -spec.length * 0.39;
   const usable = spec.length * 0.77;
   const windowGap = usable / Math.max(1, spec.windows);
@@ -141,7 +160,7 @@ function VehicleExterior({ type }: { type: VehicleTypeChoice }) {
         <boxGeometry args={[0.12, 0.12, spec.width * 0.72]} />
         <meshStandardMaterial color="#202a26" metalness={0.46} roughness={0.38} />
       </mesh>
-      {[-1, 1].map((side) => wheelXs.map((x) => <Wheel key={`${side}-${x}`} position={[x, 0.36, side * spec.width * 0.51]}/>))}
+      {[-1, 1].map((side) => wheelXs.map((x) => <Wheel key={`${side}-${x}`} radius={wheelRadius} position={[x, wheelRadius, side * spec.width * 0.51]}/>))}
       {type === "DANFO" && (
         <mesh position={[spec.length * 0.45, 0.78, 0]} rotation={[0, Math.PI / 2, 0]}>
           <planeGeometry args={[spec.width * 0.24, 0.15]} />

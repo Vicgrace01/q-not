@@ -32,16 +32,16 @@ export function QNotRoadHero({
       <div className="q-road-content page-width">
         <div className="q-road-copy">
           <div className="q-road-eyebrow"><span className="q-road-pulse" /> THE CITY, IN MOTION <i /> SHARED TRANSPORT, CONNECTED</div>
-          <h1 id="q-road-title">Don&apos;t wait<br />for the bus.<br /><em>Move with it.</em></h1>
-          <p>Know which service is moving, what it costs and where to board before you leave. Q-not connects passengers with independent drivers, vehicles and transport operators across the routes people already use.</p>
+          <h1 id="q-road-title">Every route.<br />Every vehicle.<br /><em>One network.</em></h1>
+          <p>Q-not connects passengers with the drivers, vehicles and operators that keep shared transport moving. Discover departures, compare fares and boarding options, reserve eligible journeys and stay informed while you travel.</p>
           <div className="q-road-actions">
-            <Link href="/trips" className="q-road-primary">Find your departure <span>↗</span></Link>
-            <Link href="#journey-experience" className="q-road-secondary"><span className="q-road-play">▶</span> Experience the journey</Link>
+            <Link href="/trips" className="q-road-primary">Find a journey <span>↗</span></Link>
+            <Link href="#journey-experience" className="q-road-secondary"><span className="q-road-play">▶</span> See how Q-not works</Link>
           </div>
           <div className="q-road-proof">
-            <span><b>01</b> See the service</span>
-            <span><b>02</b> Know your boarding point</span>
-            <span><b>03</b> Follow your bus</span>
+            <span><b>01</b> Discover services</span>
+            <span><b>02</b> Choose where to board</span>
+            <span><b>03</b> Stay connected en route</span>
           </div>
         </div>
       </div>
