@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCommuterId } from "@/lib/session";
 import { commuterLogoutAction } from "@/lib/actions/commuter-auth";
+import { QNotWorkspaceDock } from "@/components/qnot-workspace-navigation";
 import { requestPassengerEmailLinkAction, requestPassengerPhoneLinkAction, updatePassengerProfileAction, verifyPassengerEmailLinkAction, verifyPassengerPhoneLinkAction } from "@/lib/actions/passenger-profile";
 
 export const dynamic = "force-dynamic";
@@ -14,9 +15,19 @@ export default async function PassengerProfilePage({ searchParams }: { searchPar
   const [commuter, params] = await Promise.all([prisma.commuter.findUnique({ where: { id: commuterId } }), searchParams]);
   if (!commuter) redirect("/c/login");
   const email = params.email ?? "";
-  return <main className="min-h-screen bg-[#071311] px-4 py-7 text-white sm:px-6"><div className="mx-auto max-w-3xl">
+  return <main className="qnot-workspace-page min-h-screen bg-[#071311] px-4 py-7 text-white sm:px-6"><div className="mx-auto max-w-3xl">
     <header className="mb-8 flex items-center justify-between border-b border-neutral-800 pb-4"><Link href="/" className="text-xl font-black">Q-not</Link><nav className="flex gap-4 text-sm text-neutral-300"><Link href="/c/dashboard">Dashboard</Link><Link href="/c/q-funds">Q-Funds</Link><form action={commuterLogoutAction}><button type="submit" className="underline">Sign out</button></form></nav></header>
     <p className="text-xs font-bold tracking-[.18em] text-lime-300">ACCOUNT / TRUST & SAFETY</p><h1 className="mt-2 text-3xl font-black">Your passenger profile</h1><p className="mt-2 text-sm text-neutral-400">Keep your contact and emergency details current so Q-not can support you during a journey.</p>
+    <section className="mt-6 grid gap-3 rounded-2xl border border-neutral-800 bg-[#0d1916] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-5" aria-label="Passenger account summary">
+      <div className="flex min-w-0 items-center gap-4">
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-lime-300/25 bg-lime-300/10 text-xl font-black text-lime-200">{(commuter.displayName?.trim() || commuter.email || commuter.phone || "P").slice(0, 1).toUpperCase()}</span>
+        <div className="min-w-0"><span className="text-[10px] font-bold tracking-[.16em] text-lime-300">PASSENGER ACCOUNT</span><strong className="mt-1 block truncate text-lg">{commuter.displayName?.trim() || "Add your preferred name"}</strong><p className="mt-1 truncate text-xs text-neutral-400">{commuter.email ?? commuter.phone ?? "No contact method linked yet"}</p></div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs sm:min-w-64">
+        <div className="rounded-xl border border-neutral-800 bg-[#091310] p-3"><span className="block text-neutral-500">Mobile</span><strong className={commuter.phoneVerifiedAt ? "mt-1 block text-emerald-200" : "mt-1 block text-amber-200"}>{commuter.phoneVerifiedAt ? "Verified" : commuter.phone ? "Not verified" : "Not linked"}</strong></div>
+        <div className="rounded-xl border border-neutral-800 bg-[#091310] p-3"><span className="block text-neutral-500">Email</span><strong className={commuter.emailVerifiedAt ? "mt-1 block text-emerald-200" : "mt-1 block text-amber-200"}>{commuter.emailVerifiedAt ? "Verified" : commuter.email ? "Not verified" : "Not linked"}</strong></div>
+      </div>
+    </section>
     {params.saved === "1" && <p className="mt-5 rounded-lg bg-emerald-950 px-4 py-3 text-sm text-emerald-200">Profile details saved.</p>}
     {params.emailLinked === "1" && <p className="mt-5 rounded-lg bg-emerald-950 px-4 py-3 text-sm text-emerald-200">Your email address has been verified and linked to this passenger account.</p>}
     {params.phoneLinked === "1" && <p className="mt-5 rounded-lg bg-emerald-950 px-4 py-3 text-sm text-emerald-200">Your phone number has been verified and linked to this passenger account.</p>}
@@ -25,5 +36,7 @@ export default async function PassengerProfilePage({ searchParams }: { searchPar
     {!commuter.phoneVerifiedAt ? <section className="mt-6 rounded-xl border border-neutral-800 bg-[#0d1916] p-5 sm:p-6"><h2 className="text-lg font-bold">Link and verify your phone</h2><p className="mt-1 text-sm text-neutral-400">A verified mobile number helps with trip updates and account recovery.</p>{!params.phoneSent ? <form action={requestPassengerPhoneLinkAction} className="mt-4 flex flex-col gap-3 sm:flex-row"><input name="phone" required type="tel" placeholder="+234..." defaultValue={commuter.phone ?? ""} className={`${field} mt-0`}/><button className="rounded-lg border border-lime-300 px-4 py-2.5 text-sm font-bold text-lime-200" type="submit">Send SMS code</button></form> : <form action={verifyPassengerPhoneLinkAction} className="mt-4 space-y-3"><input type="hidden" name="phone" value={params.phone ?? ""}/><p className="text-sm text-neutral-300">Enter the six-digit code sent to {params.phone}. In local development, the code appears in the server terminal.</p><input name="code" required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} placeholder="000000" className={field}/><button className="rounded-lg bg-lime-300 px-5 py-3 text-sm font-bold text-neutral-950" type="submit">Verify phone</button></form>}</section> : null}
     {!commuter.emailVerifiedAt ? <section className="mt-6 rounded-xl border border-neutral-800 bg-[#0d1916] p-5 sm:p-6"><h2 className="text-lg font-bold">Link and verify your email</h2><p className="mt-1 text-sm text-neutral-400">An email address enables secure online fare checkout and account recovery.</p>{!params.emailSent ? <form action={requestPassengerEmailLinkAction} className="mt-4 flex flex-col gap-3 sm:flex-row"><input name="email" required type="email" placeholder="you@example.com" defaultValue={commuter.email ?? ""} className={`${field} mt-0`}/><button className="rounded-lg border border-lime-300 px-4 py-2.5 text-sm font-bold text-lime-200" type="submit">Send verification code</button></form> : <form action={verifyPassengerEmailLinkAction} className="mt-4 space-y-3"><input type="hidden" name="email" value={email}/><p className="text-sm text-neutral-300">Enter the six-digit code sent to {email}. During local development, the code appears in the server terminal.</p><input name="code" required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} placeholder="000000" className={field}/><button className="rounded-lg bg-lime-300 px-5 py-3 text-sm font-bold text-neutral-950" type="submit">Verify email</button></form>}</section> : <section className="mt-6 rounded-xl border border-emerald-900 bg-emerald-950/30 p-5"><strong className="text-emerald-200">Email verified</strong><p className="mt-1 text-sm text-neutral-400">{commuter.email}</p></section>}
     <p className="mt-6 text-xs leading-relaxed text-neutral-500">Emergency contact details are used for journey safety support. Q-not does not automatically contact emergency services. In an immediate emergency, contact the relevant local emergency service directly.</p>
-  </div></main>;
+  </div>
+    <QNotWorkspaceDock role="passenger" />
+  </main>;
 }

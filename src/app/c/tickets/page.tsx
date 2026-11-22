@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCommuterId } from "@/lib/session";
 import { QNotBrand } from "@/components/qnot-brand";
+import { QNotWorkspaceDock } from "@/components/qnot-workspace-navigation";
 
 export const dynamic = "force-dynamic";
 const dateTime = new Intl.DateTimeFormat("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" });
@@ -33,7 +34,7 @@ export default async function MyTicketsPage() {
   return (
     <main className="qnot-basic-page qnot-tickets-page">
       <header><div><QNotBrand /><nav><Link href="/c/dashboard">My Q-not</Link><Link href="/c/q-funds">Q-Funds</Link><Link href="/trips">Find a bus</Link></nav></div></header>
-      <main className="qnot-ticket-wallet-wrap">
+      <main className="qnot-ticket-wallet-wrap qnot-workspace-page">
         <span className="qnot-page-eyebrow">PASSENGER / TRAVEL WALLET</span>
         <h1>Your tickets.<br /><em>Your journeys.</em></h1>
         <p className="qnot-ticket-wallet-lead">Every confirmed boarding pass and active queue position, together in one place.</p>
@@ -58,6 +59,7 @@ export default async function MyTicketsPage() {
           {entries.length === 0 ? <p className="qnot-ticket-queue-empty">You have no active queue positions. A queue entry records demand; it does not reserve a seat until the fare and boarding process are confirmed.</p> : <div className="qnot-ticket-queue-list">{entries.map((entry) => <article key={entry.id}><div><strong>{entry.trip.route.origin} <i>→</i> {entry.trip.route.destination}</strong><span>{entry.trip.bus.plateNumber} · Position {entry.position} · Joined {dateTime.format(entry.joinedAt)}</span></div><b>{statusLabel(entry.status)}</b><Link href={`/trips/${entry.tripId}`}>View departure ↗</Link></article>)}</div>}
         </section>
       </main>
+      <QNotWorkspaceDock role="passenger" />
     </main>
   );
 }

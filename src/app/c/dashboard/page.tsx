@@ -5,6 +5,7 @@ import { getCommuterId } from "@/lib/session";
 import { commuterLogoutAction } from "@/lib/actions/commuter-auth";
 import { QNotBrand } from "@/components/qnot-brand";
 import { LiveTripMap } from "@/components/maps/live-trip-map";
+import { QNotWorkspaceDock, QNotWorkspaceNavigation } from "@/components/qnot-workspace-navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -86,19 +87,14 @@ export default async function PassengerDashboardPage() {
   const firstName = displayName.split(/\s+/)[0];
   const activeQueueEntry = commuter.queueEntries.find((entry) => entry.status === "WAITING" || entry.status === "CALLED" || entry.status === "CONFIRMED");
   const activeTicket = commuter.tickets.find((ticket) => ticket.status === "ISSUED" && (ticket.trip.status === "BOARDING" || ticket.trip.status === "IN_TRANSIT"));
-  const latestTicket = commuter.tickets[0];
+  const nextTicket = commuter.tickets.find((ticket) => ticket.status === "ISSUED");
 
   return (
     <div className="qnot-passenger-workspace">
       <header className="qnot-passenger-topbar">
         <div className="qnot-passenger-topbar-inner">
           <QNotBrand />
-          <nav className="qnot-passenger-nav" aria-label="Passenger navigation">
-            <Link href="/trips">Find a bus</Link>
-            <Link href="/c/tickets">My journeys</Link>
-            <Link href="/c/q-funds">Q-Funds</Link>
-            <Link href="/c/profile">Safety & profile</Link>
-          </nav>
+          <QNotWorkspaceNavigation role="passenger" />
           <div className="qnot-passenger-account">
             <span className="qnot-passenger-avatar" aria-hidden="true">{firstName.slice(0, 1).toUpperCase()}</span>
             <span className="qnot-passenger-account-name"><small>YOUR Q-NOT ACCOUNT</small><strong>{displayName}</strong></span>
@@ -130,13 +126,13 @@ export default async function PassengerDashboardPage() {
                 <div className="qnot-passenger-next-status"><span>{queueStatusLabel(activeQueueEntry.status)}</span><small>Joined {dateTime.format(activeQueueEntry.joinedAt)}</small></div>
                 <Link className="qnot-passenger-next-link" href={`/trips/${activeQueueEntry.tripId}`}>Open your journey <span>↗</span></Link>
               </>
-            ) : latestTicket ? (
+            ) : nextTicket ? (
               <>
                 <span className="qnot-passenger-next-kicker">LATEST BOARDING PASS</span>
-                <h2>{latestTicket.trip.route.origin}<i />{latestTicket.trip.route.destination}</h2>
-                <p>{latestTicket.trip.bus.vehicleType.replaceAll("_", " ")} · {latestTicket.trip.bus.plateNumber}</p>
-                <div className="qnot-passenger-next-status"><span>{ticketStatusLabel(latestTicket.status)}</span><small>{timeOnly.format(latestTicket.trip.departureTime)}</small></div>
-                <Link className="qnot-passenger-next-link" href={`/trips/${latestTicket.tripId}`}>View trip details <span>↗</span></Link>
+                <h2>{nextTicket.trip.route.origin}<i />{nextTicket.trip.route.destination}</h2>
+                <p>{nextTicket.trip.bus.vehicleType.replaceAll("_", " ")} · {nextTicket.trip.bus.plateNumber}</p>
+                <div className="qnot-passenger-next-status"><span>{ticketStatusLabel(nextTicket.status)}</span><small>{timeOnly.format(nextTicket.trip.departureTime)}</small></div>
+                <Link className="qnot-passenger-next-link" href={`/trips/${nextTicket.tripId}`}>View trip details <span>↗</span></Link>
               </>
             ) : (
               <>
@@ -235,6 +231,7 @@ export default async function PassengerDashboardPage() {
       </main>
 
       <footer className="qnot-passenger-footer"><QNotBrand compact /><span>YOUR CITY. YOUR ROUTE. YOUR Q-NOT.</span><Link href="/">Back to Q-not ↗</Link></footer>
+      <QNotWorkspaceDock role="passenger" />
     </div>
   );
 }

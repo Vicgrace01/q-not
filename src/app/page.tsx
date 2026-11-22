@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCommuterId } from "@/lib/session";
 import { QNotRoadHero, QNotJourneyFilm } from "@/components/qnot-home-visuals";
 import { QNotHomeNetworkMap } from "@/components/home/qnot-home-network-map";
+import { QNotThemeToggle } from "@/components/qnot-theme-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -129,9 +130,24 @@ export default async function HomePage() {
             <Link href="/operators">For operators</Link>
           </nav>
           <div className="q-home-header-actions">
+            <QNotThemeToggle />
             <Link className="q-home-signin" href={commuterId ? "/c/dashboard" : "/c/login"}>{commuterId ? "My Q-not" : "Sign in"}</Link>
             <Link className="q-home-header-cta" href="/trips"><span>Find a bus</span><i>↗</i></Link>
           </div>
+          <details className="q-home-mobile-menu">
+            <summary aria-label="Open site navigation">
+              <span className="q-home-menu-icon" aria-hidden="true"><i /><i /><i /></span>
+              <span>Menu</span>
+            </summary>
+            <nav className="q-home-mobile-menu-panel" aria-label="Mobile navigation">
+              <Link href="/trips">Departures <span>↗</span></Link>
+              <Link href="#journey-experience">The journey <span>↗</span></Link>
+              <Link href="#network-map">Network map <span>↗</span></Link>
+              <Link href="/drive">Drive with Q-not <span>↗</span></Link>
+              <Link href="/operators">For operators <span>↗</span></Link>
+              <QNotThemeToggle />
+            </nav>
+          </details>
         </div>
       </header>
 
@@ -153,9 +169,20 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <div id="journey-experience"><QNotJourneyFilm /></div>
-
-      <QNotHomeNetworkMap routes={routeSummaries} />
+      <section className="q-home-portals" id="q-not-network" aria-labelledby="q-home-portals-title">
+        <div className="page-width">
+          <div className="q-home-section-head q-home-section-head--portals">
+            <div><span className="q-home-kicker">ONE TRANSPORT NETWORK / FOUR WAYS IN</span><h2 id="q-home-portals-title">Your part of the city.<br /><em>Your Q-not space.</em></h2></div>
+            <p>Passengers, independent drivers, fleet operators and network coordinators work from connected records—not disconnected apps and spreadsheets.</p>
+          </div>
+          <div className="q-home-portal-grid">
+            <article className="q-home-portal q-home-portal--passenger"><span className="q-home-portal-no">01 / PASSENGER</span><div className="q-home-portal-glyph q-home-portal-glyph--passenger"><i /><i /><i /></div><h3>Ride with<br />more certainty.</h3><p>Compare departures, see fares and available seats, choose where to board, keep your ticket and follow your bus when location sharing is active.</p><Link href="/trips">Explore passenger journeys <span>↗</span></Link></article>
+            <article className="q-home-portal q-home-portal--driver"><span className="q-home-portal-no">02 / DRIVER & OWNER</span><div className="q-home-portal-glyph q-home-portal-glyph--driver"><i /><i /><i /></div><h3>Bring your bus<br />into the network.</h3><p>Register your Danfo, Korope, van or bus. Complete driver and vehicle checks, request route access and receive demand for services you are approved to run.</p><Link href="/drive">Enter Q-not Drive <span>↗</span></Link></article>
+            <article className="q-home-portal q-home-portal--operator"><span className="q-home-portal-no">03 / OPERATOR</span><div className="q-home-portal-glyph q-home-portal-glyph--operator"><i /><i /><i /></div><h3>Run the fleet.<br />See the whole shift.</h3><p>Manage routes, stops, vehicles, driver assignments, service schedules, fares, approvals and passenger boarding in one operations workspace.</p><Link href="/operators">Enter operator workspace <span>↗</span></Link></article>
+            <article className="q-home-portal q-home-portal--network"><span className="q-home-portal-no">04 / NETWORK</span><div className="q-home-portal-glyph q-home-portal-glyph--network"><i /><i /><i /></div><h3>Match demand<br />to available seats.</h3><p>See route demand and vehicle supply, identify compatible passenger requests and coordinate where approved buses should go next.</p><Link href="/network">Explore network control <span>↗</span></Link></article>
+          </div>
+        </div>
+      </section>
 
       <section className="q-home-departures" id="departures" aria-labelledby="q-home-departures-title">
         <div className="page-width">
@@ -190,20 +217,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="q-home-portals" id="q-not-network" aria-labelledby="q-home-portals-title">
-        <div className="page-width">
-          <div className="q-home-section-head q-home-section-head--portals">
-            <div><span className="q-home-kicker">ONE TRANSPORT NETWORK / FOUR WAYS IN</span><h2 id="q-home-portals-title">Your part of the city.<br /><em>Your Q-not space.</em></h2></div>
-            <p>Passengers, independent drivers, fleet operators and network coordinators work from connected records—not disconnected apps and spreadsheets.</p>
-          </div>
-          <div className="q-home-portal-grid">
-            <article className="q-home-portal q-home-portal--passenger"><span className="q-home-portal-no">01 / PASSENGER</span><div className="q-home-portal-glyph q-home-portal-glyph--passenger"><i /><i /><i /></div><h3>Ride with<br />more certainty.</h3><p>Compare departures, see fares and available seats, choose where to board, keep your ticket and follow your bus when location sharing is active.</p><Link href="/trips">Explore passenger journeys <span>↗</span></Link></article>
-            <article className="q-home-portal q-home-portal--driver"><span className="q-home-portal-no">02 / DRIVER & OWNER</span><div className="q-home-portal-glyph q-home-portal-glyph--driver"><i /><i /><i /></div><h3>Bring your bus<br />into the network.</h3><p>Register your Danfo, Korope, van or bus. Complete driver and vehicle checks, request route access and receive demand for services you are approved to run.</p><Link href="/drive">Enter Q-not Drive <span>↗</span></Link></article>
-            <article className="q-home-portal q-home-portal--operator"><span className="q-home-portal-no">03 / OPERATOR</span><div className="q-home-portal-glyph q-home-portal-glyph--operator"><i /><i /><i /></div><h3>Run the fleet.<br />See the whole shift.</h3><p>Manage routes, stops, vehicles, driver assignments, service schedules, fares, approvals and passenger boarding in one operations workspace.</p><Link href="/operators">Enter operator workspace <span>↗</span></Link></article>
-            <article className="q-home-portal q-home-portal--network"><span className="q-home-portal-no">04 / NETWORK</span><div className="q-home-portal-glyph q-home-portal-glyph--network"><i /><i /><i /></div><h3>Match demand<br />to available seats.</h3><p>See route demand and vehicle supply, identify compatible passenger requests and coordinate where approved buses should go next.</p><Link href="/network">Explore network control <span>↗</span></Link></article>
-          </div>
-        </div>
-      </section>
+      <QNotHomeNetworkMap routes={routeSummaries} />
+
+      <div id="journey-experience"><QNotJourneyFilm /></div>
 
       <section className="q-home-trust">
         <div className="page-width q-home-trust-inner">
