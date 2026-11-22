@@ -5,6 +5,7 @@ import { getCommuterId } from "@/lib/session";
 import { commuterLogoutAction } from "@/lib/actions/commuter-auth";
 import { QNotBrand } from "@/components/qnot-brand";
 import { LiveTripMap } from "@/components/maps/live-trip-map";
+import { CampusDemoExperience } from "@/components/campus-demo-experience";
 import { QNotWorkspaceDock, QNotWorkspaceNavigation } from "@/components/qnot-workspace-navigation";
 
 export const dynamic = "force-dynamic";
@@ -153,6 +154,8 @@ export default async function PassengerDashboardPage() {
             <div className="qnot-passenger-next-card-foot"><span>Q-NOT / MOVE WITH THE CITY</span><span>01 — 04</span></div>
           </aside>
         </section>
+
+        <CampusDemoExperience />
 
         {activeTicket && (
           <section className="qnot-passenger-live-journey" aria-label="Your live journey">
