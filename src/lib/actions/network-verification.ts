@@ -19,7 +19,7 @@ async function requireNetworkAdmin() {
 export async function updateNetworkReviewAction(formData: FormData): Promise<void> {
   const adminId = await requireNetworkAdmin();
   const parsed = z.object({
-    target: z.enum(["DRIVER_CHECK", "VEHICLE", "ROUTE"]),
+    target: z.enum(["OPERATOR", "DRIVER_CHECK", "VEHICLE", "ROUTE"]),
     id: z.string().min(1),
     decision: z.enum(["APPROVED", "REJECTED", "SUSPENDED"]),
     notes: z.string().max(500).optional(),
@@ -29,8 +29,13 @@ export async function updateNetworkReviewAction(formData: FormData): Promise<voi
   if (!parsed.success) throw new Error("Invalid review action.");
 
   const { target, id, decision, notes } = parsed.data;
+  if (target === "OPERATOR" && id === adminId) redirect("/network/verification?error=operator-self-review");
   await prisma.$transaction(async (tx) => {
-    if (target === "DRIVER_CHECK") {
+    if (target === "OPERATOR") {
+      const pendingOperator = await tx.operator.findUnique({ where: { id }, select: { id: true } });
+      if (!pendingOperator) throw new Error("Operator account not found.");
+      await tx.operator.update({ where: { id }, data: { verificationStatus: decision } });
+    } else if (target === "DRIVER_CHECK") {
       const check = await tx.driverVerification.findUnique({ where: { id }, select: { id: true, driverId: true, kind: true } });
       if (!check) throw new Error("Driver verification record not found.");
       await tx.driverVerification.update({ where: { id }, data: { status: decision, reviewedAt: new Date(), notes: notes || `Reviewed by network operator ${adminId}.` } });
@@ -53,6 +58,10 @@ export async function updateNetworkReviewAction(formData: FormData): Promise<voi
     }
   });
   revalidatePath("/network/verification");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/fleet");
+  revalidatePath("/network/dispatch");
+  revalidatePath("/dashboard/finance");
   revalidatePath("/driver/dashboard");
   redirect("/network/verification?reviewed=1");
 }

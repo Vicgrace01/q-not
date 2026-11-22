@@ -1,8 +1,6 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { env } from "@/lib/env";
-import { getSessionOperatorId } from "@/lib/session";
+import { getOperatorManagementAccess } from "@/lib/operator-access";
 import { matchJourneyRequestAction } from "@/lib/actions/journey-requests";
 import { NetworkLiveMap } from "@/components/maps/network-live-map";
 import { QNotWorkspaceDock } from "@/components/qnot-workspace-navigation";
@@ -10,14 +8,8 @@ import { QNotWorkspaceDock } from "@/components/qnot-workspace-navigation";
 export const dynamic = "force-dynamic";
 
 export default async function NetworkDispatchPage({ searchParams }: { searchParams: Promise<{ matched?: string; error?: string }> }) {
-  const operatorId = await getSessionOperatorId();
-  if (!operatorId) redirect("/login");
-  const [operator, params] = await Promise.all([
-    prisma.operator.findUnique({ where: { id: operatorId }, select: { email: true } }), searchParams,
-  ]);
-  if (!operator) redirect("/login");
-  const admins = (env.QNOT_NETWORK_ADMIN_EMAILS ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean);
-  const isNetworkAdmin = admins.includes(operator.email.toLowerCase());
+  const { operatorId, isNetworkAdmin } = await getOperatorManagementAccess();
+  const params = await searchParams;
   const routeWhere = isNetworkAdmin ? {} : { operatorId };
   const routes = await prisma.route.findMany({ where: routeWhere, select: { id: true } });
   const routeIds = routes.map((route) => route.id);

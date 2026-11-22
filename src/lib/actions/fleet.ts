@@ -4,13 +4,12 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getSessionOperatorId } from "@/lib/session";
+import { requireOperatorManagementAccess } from "@/lib/operator-access";
 import { normaliseNigerianPhone } from "@/lib/otp/persistent";
 import { assertOperatorMayManageDriver } from "@/lib/driver/operator-association";
 
 export async function createFleetVehicleAction(formData: FormData): Promise<void> {
-  const operatorId = await getSessionOperatorId();
-  if (!operatorId) redirect("/login");
+  const operatorId = await requireOperatorManagementAccess();
   const parsed = z.object({
     plateNumber: z.string().trim().min(4).max(15).regex(/^[A-Za-z0-9 -]+$/),
     vehicleType: z.enum(["DANFO", "KOROPE", "ELECTRIC_TRICYCLE", "HIACE", "COASTER", "SHUTTLE", "OTHER"]),
@@ -45,8 +44,7 @@ export async function createFleetVehicleAction(formData: FormData): Promise<void
 
 
 export async function updateFleetVehicleAction(formData: FormData): Promise<void> {
-  const operatorId = await getSessionOperatorId();
-  if (!operatorId) redirect("/login");
+  const operatorId = await requireOperatorManagementAccess();
 
   const parsed = z.object({
     busId: z.string().min(1),
@@ -110,8 +108,7 @@ export async function updateFleetVehicleAction(formData: FormData): Promise<void
 }
 
 export async function registerOperatorDriverAction(formData: FormData): Promise<void> {
-  const operatorId = await getSessionOperatorId();
-  if (!operatorId) redirect("/login");
+  const operatorId = await requireOperatorManagementAccess();
   const parsed = z.object({
     name: z.string().trim().min(2).max(100),
     phone: z.string().min(7).max(25),

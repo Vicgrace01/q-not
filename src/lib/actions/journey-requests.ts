@@ -4,8 +4,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getCommuterId, getSessionOperatorId } from "@/lib/session";
-import { env } from "@/lib/env";
+import { getCommuterId } from "@/lib/session";
+import { getOperatorManagementAccess } from "@/lib/operator-access";
 import { parseLagosDateTime } from "@/lib/dates";
 
 export async function createJourneyRequestAction(formData: FormData): Promise<void> {
@@ -59,12 +59,7 @@ export async function cancelJourneyRequestAction(formData: FormData): Promise<vo
 }
 
 async function requireDispatchAccess() {
-  const operatorId = await getSessionOperatorId();
-  if (!operatorId) redirect("/login");
-  const operator = await prisma.operator.findUnique({ where: { id: operatorId }, select: { email: true } });
-  if (!operator) redirect("/login");
-  const admins = (env.QNOT_NETWORK_ADMIN_EMAILS ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean);
-  return { operatorId, isNetworkAdmin: admins.includes(operator.email.toLowerCase()) };
+  return getOperatorManagementAccess();
 }
 
 export async function matchJourneyRequestAction(formData: FormData): Promise<void> {

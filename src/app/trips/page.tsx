@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { QNotBrand } from "@/components/qnot-brand";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -40,9 +41,7 @@ export default async function TripsPage() {
     <div className="qnot-basic-page qnot-trips-page">
       <header className="border-b border-neutral-800">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
-          <Link href="/" className="text-lg font-semibold">
-            Q-Not
-          </Link>
+          <QNotBrand />
           <Link
             href="/c/tickets"
             className="text-sm text-neutral-400 hover:text-white"

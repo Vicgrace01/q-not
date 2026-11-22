@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { QNotBrand } from "@/components/qnot-brand";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCommuterId } from "@/lib/session";
@@ -16,7 +17,7 @@ export default async function QFundsPage({ searchParams }: { searchParams: Promi
     prisma.payment.aggregate({ where: { commuterId, status: "SUCCEEDED" }, _sum: { amountKobo: true }, _count: { id: true } }),
     searchParams,
   ]);
-  return <div className="qnot-basic-page"><header className="border-b border-neutral-800"><div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4"><Link href="/" className="text-lg font-bold">Q-not</Link><nav className="flex items-center gap-4 text-sm"><Link href="/c/dashboard">Passenger dashboard</Link><form action={commuterLogoutAction}><button type="submit" className="text-neutral-400 underline">Sign out</button></form></nav></div></header>
+  return <div className="qnot-basic-page"><header className="border-b border-neutral-800"><div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4"><QNotBrand /><nav className="flex items-center gap-4 text-sm"><Link href="/c/dashboard">Passenger dashboard</Link><form action={commuterLogoutAction}><button type="submit" className="text-neutral-400 underline">Sign out</button></form></nav></div></header>
     <main className="qnot-workspace-page mx-auto max-w-5xl px-5 py-8">
       <p className="text-xs font-bold tracking-[.18em] text-lime-300">Q-FUNDS / TRANSPORT PAYMENTS</p><h1 className="mt-2 text-3xl font-black">Your journey finances.</h1><p className="mt-2 max-w-2xl text-sm text-neutral-400">Your transport payment history and booking confirmations in one place.</p>
       {params.payment === "success" && <p className="mt-5 rounded-lg bg-emerald-950 px-4 py-3 text-sm text-emerald-200">Your payment has been confirmed and the ticket is available in your account.</p>}

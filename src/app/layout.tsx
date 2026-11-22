@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import { PageTransition } from "@/components/page-transition";
+import { QNotFeedbackLauncher } from "@/components/qnot-feedback-launcher";
 import Script from "next/script";
 
 export const metadata: Metadata = {
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
           }}
         />
         <PageTransition>{children}</PageTransition>
+        <QNotFeedbackLauncher />
       </body>
     </html>
   );

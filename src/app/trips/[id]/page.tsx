@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { QNotBrand } from "@/components/qnot-brand";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCommuterId } from "@/lib/session";
@@ -55,7 +56,7 @@ export default async function TripDetailPage({ params, searchParams }: { params:
   const statusLabel = trip.status.replaceAll("_", " ").toLowerCase().replace(/(^|\s)\S/g, (part) => part.toUpperCase());
 
   return <div className="qnot-basic-page qnot-trip-detail-page">
-    <header className="border-b border-neutral-800"><div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4"><Link href="/" className="text-lg font-semibold">Q-not</Link><div className="flex items-center gap-4"><Link href="/c/dashboard" className="text-sm text-neutral-400 hover:text-white">My journeys</Link><Link href="/trips" className="text-sm text-neutral-400 hover:text-white">All departures</Link></div></div></header>
+    <header className="border-b border-neutral-800"><div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4"><QNotBrand /><div className="flex items-center gap-4"><Link href="/c/dashboard" className="text-sm text-neutral-400 hover:text-white">My journeys</Link><Link href="/trips" className="text-sm text-neutral-400 hover:text-white">All departures</Link></div></div></header>
     <main className="mx-auto max-w-5xl px-6 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3"><span className="rounded-full border border-lime-300/30 bg-lime-300/10 px-3 py-1 text-xs font-semibold text-lime-200">{statusLabel}</span><span className="text-xs text-neutral-400">Service reference {trip.id.slice(-8).toUpperCase()}</span></div>
       <h1 className="mt-4 text-3xl font-black">{trip.route.origin} <span className="text-lime-300">→</span> {trip.route.destination}</h1>

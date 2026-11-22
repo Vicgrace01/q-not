@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { QNotBrand } from "@/components/qnot-brand";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCommuterId } from "@/lib/session";
@@ -16,7 +17,7 @@ export default async function PassengerProfilePage({ searchParams }: { searchPar
   if (!commuter) redirect("/c/login");
   const email = params.email ?? "";
   return <main className="qnot-workspace-page min-h-screen bg-[#071311] px-4 py-7 text-white sm:px-6"><div className="mx-auto max-w-3xl">
-    <header className="mb-8 flex items-center justify-between border-b border-neutral-800 pb-4"><Link href="/" className="text-xl font-black">Q-not</Link><nav className="flex gap-4 text-sm text-neutral-300"><Link href="/c/dashboard">Dashboard</Link><Link href="/c/q-funds">Q-Funds</Link><form action={commuterLogoutAction}><button type="submit" className="underline">Sign out</button></form></nav></header>
+    <header className="mb-8 flex items-center justify-between border-b border-neutral-800 pb-4"><QNotBrand /><nav className="flex gap-4 text-sm text-neutral-300"><Link href="/c/dashboard">Dashboard</Link><Link href="/c/q-funds">Q-Funds</Link><form action={commuterLogoutAction}><button type="submit" className="underline">Sign out</button></form></nav></header>
     <p className="text-xs font-bold tracking-[.18em] text-lime-300">ACCOUNT / TRUST & SAFETY</p><h1 className="mt-2 text-3xl font-black">Your passenger profile</h1><p className="mt-2 text-sm text-neutral-400">Keep your contact and emergency details current so Q-not can support you during a journey.</p>
     <section className="mt-6 grid gap-3 rounded-2xl border border-neutral-800 bg-[#0d1916] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-5" aria-label="Passenger account summary">
       <div className="flex min-w-0 items-center gap-4">

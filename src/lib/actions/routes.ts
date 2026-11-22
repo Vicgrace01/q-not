@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getSessionOperatorId } from "@/lib/session";
+import { requireOperatorManagementAccess } from "@/lib/operator-access";
 import { parseLagosDateTime } from "@/lib/dates";
 
 export type RouteFormState = {
@@ -24,10 +24,7 @@ export async function createRouteAction(
   _prev: RouteFormState | undefined,
   formData: FormData,
 ): Promise<RouteFormState> {
-  const operatorId = await getSessionOperatorId();
-  if (!operatorId) {
-    return { error: { _form: ["Not signed in"] } };
-  }
+  const operatorId = await requireOperatorManagementAccess();
 
   const parsed = RouteSchema.safeParse({
     origin: formData.get("origin"),
@@ -54,8 +51,7 @@ export async function createRouteAction(
 
 
 export async function addRouteStopAction(formData: FormData): Promise<void> {
-  const operatorId = await getSessionOperatorId();
-  if (!operatorId) redirect("/login");
+  const operatorId = await requireOperatorManagementAccess();
   const parsed = z.object({
     routeId: z.string().min(1),
     name: z.string().trim().min(2).max(100),
@@ -86,8 +82,7 @@ export async function addRouteStopAction(formData: FormData): Promise<void> {
 
 
 export async function createOperatorTripAction(formData: FormData): Promise<void> {
-  const operatorId = await getSessionOperatorId();
-  if (!operatorId) redirect("/login");
+  const operatorId = await requireOperatorManagementAccess();
   const parsed = z.object({
     routeId: z.string().min(1),
     assignmentId: z.string().min(1),

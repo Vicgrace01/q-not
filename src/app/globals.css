@@ -4449,7 +4449,7 @@ html[data-theme="light"] .q-not-home .q-home-mobile-menu-panel a:focus-visible {
     backdrop-filter: blur(18px) saturate(1.2);
   }
   .qnot-workspace-dock--passenger { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .qnot-workspace-dock--operator { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .qnot-workspace-dock--operator { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .qnot-workspace-dock a {
     display: flex;
     min-width: 0;
@@ -4487,7 +4487,7 @@ html[data-theme="light"] .q-not-home .q-home-mobile-menu-panel a:focus-visible {
 
   /* Use the role-aware dock instead of a second horizontal operator menu. */
   .qnot-ops-nav { display: none !important; }
-  .qnot-ops-content { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
+  .qnot-ops-content { padding-bottom: calc(144px + env(safe-area-inset-bottom)); }
   .qnot-ops-footer { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
   .qnot-workspace-page { padding-bottom: calc(112px + env(safe-area-inset-bottom)) !important; }
   .qnot-passenger-footer { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }

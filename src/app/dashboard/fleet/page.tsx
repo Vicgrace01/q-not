@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getSessionOperatorId } from "@/lib/session";
+import { requireOperatorManagementAccess } from "@/lib/operator-access";
 import { createFleetVehicleAction, registerOperatorDriverAction, updateFleetVehicleAction } from "@/lib/actions/fleet";
 import { OperatorFleetLiveMap } from "@/components/maps/operator-fleet-live-map";
 
@@ -12,8 +11,7 @@ const label = "block text-xs font-medium text-neutral-300";
 function state(value: string) { return value.replaceAll("_", " ").toLowerCase().replace(/(^|\s)\S/g, (letter) => letter.toUpperCase()); }
 
 export default async function FleetPage({ searchParams }: { searchParams: Promise<{ vehicle?: string; driver?: string; error?: string }> }) {
-  const operatorId = await getSessionOperatorId();
-  if (!operatorId) redirect("/login");
+  const operatorId = await requireOperatorManagementAccess();
   const [vehicles, drivers, routes, params] = await Promise.all([
     prisma.bus.findMany({ where: { operatorId }, include: { assignments: { where: { revokedAt: null }, include: { driver: true } } }, orderBy: { createdAt: "desc" } }),
     prisma.driver.findMany({ where: { operatorId }, include: { vehicleAssignments: { where: { revokedAt: null }, include: { bus: true } }, routeApprovals: { include: { route: true } } }, orderBy: { createdAt: "desc" } }),
