@@ -126,6 +126,7 @@ export default async function HomePage() {
             <Link href="/trips">Departures</Link>
             <Link href="#journey-experience">The journey</Link>
             <Link href="#network-map">Network map</Link>
+            <Link href="/campus-demo">Campus demo</Link>
             <Link href="/drive">Drive with Q-not</Link>
             <Link href="/operators">For operators</Link>
           </nav>
@@ -140,6 +141,7 @@ export default async function HomePage() {
               <span>Menu</span>
             </summary>
             <nav className="q-home-mobile-menu-panel" aria-label="Mobile navigation">
+              <Link href="/campus-demo">Campus demo</Link>
               <Link href="/trips">Departures <span>↗</span></Link>
               <Link href="#journey-experience">The journey <span>↗</span></Link>
               <Link href="#network-map">Network map <span>↗</span></Link>
