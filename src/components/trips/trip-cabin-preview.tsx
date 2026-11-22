@@ -12,7 +12,7 @@ export function TripCabinPreview({ capacity, occupied, held, vehicleType, plateN
   capacity: number;
   occupied: number;
   held: number;
-  vehicleType: "DANFO" | "KOROPE" | "HIACE" | "COASTER" | "SHUTTLE" | "OTHER";
+  vehicleType: "DANFO" | "KOROPE" | "HIACE" | "COASTER" | "SHUTTLE" | "ELECTRIC_TRICYCLE" | "OTHER";
   plateNumber: string;
 }) {
   const [open, setOpen] = useState(false);

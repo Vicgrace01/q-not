@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type * as Leaflet from "leaflet";
+import { UNN_NSUKKA_CENTER } from "@/lib/locations/nigeria-campus";
 
 export type MapPoint = {
   id: string;
@@ -48,7 +49,7 @@ export function LocationMap({ points, center, zoom = 12, className, drawRoute = 
       if (cancelled || !elementRef.current || mapRef.current) return;
       leafletRef.current = L;
       const firstPoint = points.find((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude) && Math.abs(point.latitude) <= 90 && Math.abs(point.longitude) <= 180);
-      const initial: [number, number] = center ?? (firstPoint ? [firstPoint.latitude, firstPoint.longitude] : [6.5244, 3.3792]);
+      const initial: [number, number] = center ?? (firstPoint ? [firstPoint.latitude, firstPoint.longitude] : UNN_NSUKKA_CENTER);
       const map = L.map(elementRef.current, { zoomControl: true, scrollWheelZoom: false }).setView(initial, zoom);
       L.tileLayer(TILE_URL, {
         maxZoom: 19,

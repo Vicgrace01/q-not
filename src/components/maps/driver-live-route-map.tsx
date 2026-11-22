@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { LocationMap, type MapPoint } from "@/components/maps/location-map";
+import { UNN_NSUKKA_CENTER, UNN_NSUKKA_ZOOM } from "@/lib/locations/nigeria-campus";
 
 type StopPoint = { id: string; name: string; latitude: number; longitude: number; sequence: number };
 type PickupPoint = { id: string; name: string; latitude: number; longitude: number; passengerCount: number; alightingName: string; alightingLatitude: number; alightingLongitude: number };
@@ -72,7 +73,7 @@ export function DriverLiveRouteMap({ tripId, routeId, routeName, initialStops, p
         <div><span className="qnot-map-kicker">Q-NOT DRIVE / ACTIVE ROUTE</span><h3>{routeName}</h3><p>Assigned route, passenger-selected stops and your vehicle position.</p></div>
         <span className={`qnot-live-map-state${snapshot.available && !snapshot.stale ? " is-live" : ""}`}><i />{snapshot.available && !snapshot.stale ? "GPS LIVE" : snapshot.stale ? "GPS AGING" : "ROUTE READY"}</span>
       </div>
-      <LocationMap points={points} center={[6.5244, 3.3792]} zoom={12} drawRoute routeId={routeId} className="qnot-location-map qnot-live-map-canvas" />
+      <LocationMap points={points} center={UNN_NSUKKA_CENTER} zoom={UNN_NSUKKA_ZOOM} drawRoute routeId={routeId} className="qnot-location-map qnot-live-map-canvas" />
       <p className="qnot-live-map-footnote" aria-live="polite">{message} Passenger markers represent the boarding and alighting stops they selected, not a passenger&apos;s live phone location. Keep this driver screen open while sharing GPS; browser location sharing cannot continue reliably after the app is closed.</p>
       {pickupPoints.length > 0 && <div className="qnot-pickup-manifest"><strong>ON THIS SERVICE</strong>{pickupPoints.map((point) => <span key={point.id}>{point.passengerCount} × {point.name} <i>→</i> {point.alightingName}</span>)}</div>}
     </section>

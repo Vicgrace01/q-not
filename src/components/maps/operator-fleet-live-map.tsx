@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LocationMap, type MapPoint } from "@/components/maps/location-map";
+import { UNN_NSUKKA_CENTER, UNN_NSUKKA_ZOOM } from "@/lib/locations/nigeria-campus";
 
 type Snapshot = { points: MapPoint[]; activeVehicles: number; refreshedAt?: string };
 
@@ -32,7 +33,7 @@ export function OperatorFleetLiveMap() {
   }, []);
   return <section className="qnot-live-map-card">
     <div className="qnot-live-map-heading"><div><span className="qnot-map-kicker">OPERATOR / FLEET VIEW</span><h3>Vehicles on the road</h3><p>Only vehicles assigned to your routes with active, recent driver location sharing appear here.</p></div><span className={`qnot-live-map-state${snapshot.activeVehicles ? " is-live" : ""}`}><i />{snapshot.activeVehicles} LIVE</span></div>
-    <LocationMap points={snapshot.points} center={[6.5244, 3.3792]} zoom={11} className="qnot-location-map qnot-live-map-canvas" />
+    <LocationMap points={snapshot.points} center={UNN_NSUKKA_CENTER} zoom={UNN_NSUKKA_ZOOM} className="qnot-location-map qnot-live-map-canvas" />
     <p className="qnot-live-map-footnote" aria-live="polite">{message}</p>
   </section>;
 }

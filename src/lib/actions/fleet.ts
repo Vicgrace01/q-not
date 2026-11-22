@@ -13,7 +13,7 @@ export async function createFleetVehicleAction(formData: FormData): Promise<void
   if (!operatorId) redirect("/login");
   const parsed = z.object({
     plateNumber: z.string().trim().min(4).max(15).regex(/^[A-Za-z0-9 -]+$/),
-    vehicleType: z.enum(["DANFO", "KOROPE", "HIACE", "COASTER", "SHUTTLE", "OTHER"]),
+    vehicleType: z.enum(["DANFO", "KOROPE", "ELECTRIC_TRICYCLE", "HIACE", "COASTER", "SHUTTLE", "OTHER"]),
     capacity: z.coerce.number().int().min(2).max(60),
     make: z.string().trim().max(60).optional(),
     model: z.string().trim().max(60).optional(),
@@ -51,7 +51,7 @@ export async function updateFleetVehicleAction(formData: FormData): Promise<void
   const parsed = z.object({
     busId: z.string().min(1),
     plateNumber: z.string().trim().min(4).max(15).regex(/^[A-Za-z0-9 -]+$/),
-    vehicleType: z.enum(["DANFO", "KOROPE", "HIACE", "COASTER", "SHUTTLE", "OTHER"]),
+    vehicleType: z.enum(["DANFO", "KOROPE", "ELECTRIC_TRICYCLE", "HIACE", "COASTER", "SHUTTLE", "OTHER"]),
     capacity: z.coerce.number().int().min(2).max(60),
     make: z.string().trim().max(60).optional(),
     model: z.string().trim().max(60).optional(),

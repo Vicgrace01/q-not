@@ -31,9 +31,9 @@ export function QNotRoadHero({
       <div className="q-road-vignette" />
       <div className="q-road-content page-width">
         <div className="q-road-copy">
-          <div className="q-road-eyebrow"><span className="q-road-pulse" /> THE CITY, IN MOTION <i /> SHARED TRANSPORT, CONNECTED</div>
-          <h1 id="q-road-title">Every route.<br />Every vehicle.<br /><em>One network.</em></h1>
-          <p>Q-not connects passengers with the drivers, vehicles and operators that keep shared transport moving. Discover departures, compare fares and boarding options, reserve eligible journeys and stay informed while you travel.</p>
+          <div className="q-road-eyebrow"><span className="q-road-pulse" /> UNN NSUKKA CAMPUS PILOT <i /> CAMPUS MOBILITY, CONNECTED</div>
+          <h1 id="q-road-title">Move around campus.<br />Find the right ride.<br /><em>One network.</em></h1>
+          <p>Q-not is starting at the University of Nigeria, Nsukka, connecting passengers with approved campus tricycles, buses, routes and drivers. The moving 3D scene is an illustrative preview, not a surveyed campus reconstruction; real stops and vehicle positions will use verified campus data.</p>
           <div className="q-road-actions">
             <Link href="/trips" className="q-road-primary">Find a journey <span>↗</span></Link>
             <Link href="#journey-experience" className="q-road-secondary"><span className="q-road-play">▶</span> See how Q-not works</Link>

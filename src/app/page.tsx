@@ -152,8 +152,8 @@ export default async function HomePage() {
       </header>
 
       <QNotRoadHero
-        route={featuredTrip ? `${featuredTrip.route.origin} → ${featuredTrip.route.destination}` : "Routes across your city"}
-        departure={featuredTrip ? `Departs ${lagosTime(featuredTrip.departureTime)} · ${featuredTrip.bus.plateNumber}` : homeDataAvailable ? "Published services appear as routes and vehicles are approved" : "Reconnecting to live route information"}
+        route={featuredTrip ? `${featuredTrip.route.origin} → ${featuredTrip.route.destination}` : "University of Nigeria Â· Nsukka campus"}
+        departure={featuredTrip ? `Departs ${lagosTime(featuredTrip.departureTime)} · ${featuredTrip.bus.plateNumber}` : homeDataAvailable ? "Campus routes and approved vehicles appear as the pilot is verified" : "Reconnecting to live route information"}
         seats={featuredSeats === null ? "—" : String(featuredSeats)}
         waiting={featuredTrip?.queueEntries.length ?? 0}
         hasService={Boolean(featuredTrip)}

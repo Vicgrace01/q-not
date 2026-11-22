@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { LocationMap, type MapPoint } from "@/components/maps/location-map";
+import { UNN_NSUKKA_CENTER, UNN_NSUKKA_ZOOM } from "@/lib/locations/nigeria-campus";
 
 type Snapshot = { points: MapPoint[]; activeVehicles: number; openRequests: number; passengerDemand: number; refreshedAt?: string };
 
@@ -33,7 +34,7 @@ export function NetworkLiveMap() {
   return <section className="qnot-live-map-card">
     <div className="qnot-live-map-heading"><div><span className="qnot-map-kicker">Q-NOT NETWORK / LIVE COORDINATION</span><h3>Supply meets demand</h3><p>Vehicle positions and passenger-selected pickup stops on authorised corridors.</p></div><span className={`qnot-live-map-state${snapshot.activeVehicles ? " is-live" : ""}`}><i />{snapshot.activeVehicles} VEHICLES</span></div>
     <div className="qnot-network-live-stats"><span><strong>{snapshot.openRequests}</strong> open requests</span><span><strong>{snapshot.passengerDemand}</strong> passengers waiting for a match</span></div>
-    <LocationMap points={snapshot.points} center={[6.5244, 3.3792]} zoom={11} className="qnot-location-map qnot-live-map-canvas" />
+    <LocationMap points={snapshot.points} center={UNN_NSUKKA_CENTER} zoom={UNN_NSUKKA_ZOOM} className="qnot-location-map qnot-live-map-canvas" />
     <p className="qnot-live-map-footnote" aria-live="polite">{message}</p>
   </section>;
 }

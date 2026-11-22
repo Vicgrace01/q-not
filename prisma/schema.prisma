@@ -23,6 +23,7 @@ enum VerificationStatus {
 enum VehicleType {
   DANFO
   KOROPE
+  ELECTRIC_TRICYCLE
   HIACE
   COASTER
   SHUTTLE

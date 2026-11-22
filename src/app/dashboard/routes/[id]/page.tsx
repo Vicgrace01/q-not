@@ -5,6 +5,7 @@ import { getSessionOperatorId } from "@/lib/session";
 import { addRouteStopAction, createOperatorTripAction } from "@/lib/actions/routes";
 import { LocationMap, type MapPoint } from "@/components/maps/location-map";
 import { StopCoordinatePicker } from "@/components/maps/stop-coordinate-picker";
+import { UNN_NSUKKA_CENTER } from "@/lib/locations/nigeria-campus";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +66,7 @@ export default async function RouteDetailPage({ params, searchParams }: { params
           <form action={addRouteStopAction} className="mt-5 grid gap-3 border-t border-neutral-800 pt-5 sm:grid-cols-2">
             <input type="hidden" name="routeId" value={route.id}/>
             <label className="text-xs text-neutral-300 sm:col-span-2">Stop name<input name="name" required maxLength={100} placeholder="e.g. Ojuelegba" className="mt-1 w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2.5 text-sm text-white"/></label>
-            <StopCoordinatePicker existingStops={route.stops.map((stop) => ({ id: stop.id, name: stop.name, latitude: stop.latitude, longitude: stop.longitude, sequence: stop.sequence }))} center={route.stops.length ? [route.stops[route.stops.length - 1].latitude, route.stops[route.stops.length - 1].longitude] : [6.5244, 3.3792]}/>
+            <StopCoordinatePicker existingStops={route.stops.map((stop) => ({ id: stop.id, name: stop.name, latitude: stop.latitude, longitude: stop.longitude, sequence: stop.sequence }))} center={route.stops.length ? [route.stops[route.stops.length - 1].latitude, route.stops[route.stops.length - 1].longitude] : UNN_NSUKKA_CENTER}/>
             <button type="submit" className="rounded-lg bg-lime-300 px-4 py-2.5 text-sm font-bold text-neutral-950 sm:col-span-2">Add route stop</button>
           </form>
         </section>

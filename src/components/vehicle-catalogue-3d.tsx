@@ -8,6 +8,7 @@ import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
 export const VEHICLE_OPTIONS = [
   { value: "DANFO", label: "Yellow Danfo", capacity: 14, note: "Urban shared minibus" },
   { value: "KOROPE", label: "Korope", capacity: 11, note: "Compact commuter minibus" },
+  { value: "ELECTRIC_TRICYCLE", label: "Electric tricycle", capacity: 3, note: "Campus e-trike Â· verify approved passenger capacity" },
   { value: "HIACE", label: "Hiace / Van", capacity: 14, note: "Passenger van" },
   { value: "COASTER", label: "Coaster", capacity: 30, note: "Medium-capacity bus" },
   { value: "SHUTTLE", label: "Shuttle", capacity: 18, note: "Organised passenger shuttle" },
@@ -32,6 +33,7 @@ type VehicleSpec = {
 const SPECS: Record<VehicleTypeChoice, VehicleSpec> = {
   DANFO: { length: 3.55, height: 1.42, width: 1.24, colour: "#e9b923", windows: 4, capacity: 14, accent: "#17271f", roofLength: 0.82, roofWidth: 0.9, wheelRadius: 0.31 },
   KOROPE: { length: 3.0, height: 1.35, width: 1.22, colour: "#cbd5d1", windows: 3, capacity: 11, accent: "#78958b", roofLength: 0.72, roofWidth: 0.88, wheelRadius: 0.29 },
+  ELECTRIC_TRICYCLE: { length: 2.45, height: 1.25, width: 1.16, colour: "#dce6df", windows: 1, capacity: 3, accent: "#557d61", roofLength: 0.78, roofWidth: 0.9, wheelRadius: 0.255 },
   HIACE: { length: 4.15, height: 1.58, width: 1.35, colour: "#d8dfdc", windows: 5, capacity: 14, accent: "#344d51", roofLength: 0.86, roofWidth: 0.91, wheelRadius: 0.33 },
   COASTER: { length: 6.0, height: 1.9, width: 1.6, colour: "#d7dfda", windows: 7, capacity: 30, accent: "#36534a", roofLength: 0.94, roofWidth: 0.94, wheelRadius: 0.35 },
   SHUTTLE: { length: 4.8, height: 1.68, width: 1.48, colour: "#cbd5d1", windows: 6, capacity: 18, accent: "#8ba45c", roofLength: 0.9, roofWidth: 0.92, wheelRadius: 0.34 },
@@ -283,19 +285,28 @@ function VehicleExterior({ type }: { type: VehicleTypeChoice }) {
       </RoundedBox>
 
       {/* Wheel arches and correctly oriented wheels */}
-      {([-1, 1] as const).map((side) => (
-        <group key={`wheels-${side}`}>
-          {wheelXs.map((x) => (
-            <group key={`arch-${x}`}>
-              <mesh position={[x, 0.36, side * spec.width * 0.515]}>
-                <torusGeometry args={[spec.wheelRadius * 1.06, 0.035, 8, 28, Math.PI]} />
-                <meshStandardMaterial color="#27332e" roughness={0.72} />
-              </mesh>
-              <Wheel position={[x, 0.36, side * spec.width * 0.54]} side={side} radius={spec.wheelRadius} />
-            </group>
+      {type === "ELECTRIC_TRICYCLE" ? (
+        <group>
+          <Wheel position={[spec.length * 0.34, 0.36, 0]} side={1} radius={spec.wheelRadius} />
+          {([-1, 1] as const).map((side) => (
+            <Wheel key={`rear-wheel-${side}`} position={[-spec.length * 0.31, 0.36, side * spec.width * 0.54]} side={side} radius={spec.wheelRadius} />
           ))}
         </group>
-      ))}
+      ) : (
+        ([-1, 1] as const).map((side) => (
+          <group key={`wheels-${side}`}>
+            {wheelXs.map((x) => (
+              <group key={`arch-${x}`}>
+                <mesh position={[x, 0.36, side * spec.width * 0.515]}>
+                  <torusGeometry args={[spec.wheelRadius * 1.06, 0.035, 8, 28, Math.PI]} />
+                  <meshStandardMaterial color="#27332e" roughness={0.72} />
+                </mesh>
+                <Wheel position={[x, 0.36, side * spec.width * 0.54]} side={side} radius={spec.wheelRadius} />
+              </group>
+            ))}
+          </group>
+        ))
+      )}
 
       {/* Roof equipment and class markers */}
       {(type === "HIACE" || type === "OTHER") && ([-1, 1] as const).map((side) => (
