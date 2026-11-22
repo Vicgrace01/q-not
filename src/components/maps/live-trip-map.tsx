@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LocationMap, type MapPoint } from "@/components/maps/location-map";
+import { UNN_NSUKKA_CENTER } from "@/lib/locations/nigeria-campus";
 
 type StopPoint = { id: string; name: string; latitude: number; longitude: number; sequence: number };
 type LocationResponse = {
@@ -77,7 +78,7 @@ export function LiveTripMap({ tripId, routeId, initialStops, canTrackLocation = 
           {data.available && !data.stale ? "Location updating" : data.stale ? "Last location is old" : "Waiting for vehicle location"}
         </span>
       </div>
-      <LocationMap points={points} center={[6.5244, 3.3792]} drawRoute routeId={routeId} className="qnot-location-map h-[320px] w-full overflow-hidden rounded-lg" />
+      <LocationMap points={points} center={UNN_NSUKKA_CENTER} drawRoute routeId={routeId} className="qnot-location-map h-[320px] w-full overflow-hidden rounded-lg" />
       <p className="mt-3 text-xs text-neutral-400">
         {!canTrackLocation
           ? "Book this departure to view its live vehicle location."

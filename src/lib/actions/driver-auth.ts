@@ -95,7 +95,7 @@ export async function completeDriverOnboardingAction(_prev: { error?: string } |
     licenceLastFour: z.string().regex(/^\d{4}$/),
     licenceExpiry: z.string().min(1),
     operatorBusId: z.string().optional(),
-    vehicleType: z.enum(["DANFO", "KOROPE", "HIACE", "COASTER", "SHUTTLE", "OTHER"]).optional(),
+    vehicleType: z.enum(["DANFO", "KOROPE", "ELECTRIC_TRICYCLE", "HIACE", "COASTER", "SHUTTLE", "OTHER"]).optional(),
     plateNumber: z.string().trim().min(4).max(15).regex(/^[A-Za-z0-9 -]+$/).optional(),
     capacity: z.coerce.number().int().min(2).max(60).optional(),
     make: z.string().trim().max(60).optional(),
@@ -130,7 +130,7 @@ export async function completeDriverOnboardingAction(_prev: { error?: string } |
   if (Number.isNaN(licenceExpiry.getTime()) || licenceExpiry <= new Date()) return { error: "Your driving licence must be current." };
 
   const selfVehicle = !currentDriver.operatorId;
-  let vehicleData: { vehicleType: "DANFO" | "KOROPE" | "HIACE" | "COASTER" | "SHUTTLE" | "OTHER"; plateNumber: string; capacity: number; make: string | null; model: string | null; modelYear: number; colour: string; registrationExpiry: Date; insuranceExpiry: Date; inspectionExpiry: Date } | null = null;
+  let vehicleData: { vehicleType: "DANFO" | "KOROPE" | "ELECTRIC_TRICYCLE" | "HIACE" | "COASTER" | "SHUTTLE" | "OTHER"; plateNumber: string; capacity: number; make: string | null; model: string | null; modelYear: number; colour: string; registrationExpiry: Date; insuranceExpiry: Date; inspectionExpiry: Date } | null = null;
   let selectedOperatorBusId: string | null = null;
   if (selfVehicle) {
     if (!data.vehicleType || !data.plateNumber || !data.capacity || !data.colour || !data.registrationExpiry || !data.insuranceExpiry || !data.inspectionExpiry || !data.modelYear) {
